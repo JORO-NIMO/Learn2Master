@@ -40,7 +40,7 @@
             e.preventDefault();
             const formData = new FormData(this);
             const data = {};
-            formData.forEach((value, key) => data[value] = key);
+            formData.forEach((value, key) => data[key] = value);
             localStorage.setItem('offline_quiz_' + Date.now(), JSON.stringify(data));
             alert('You are offline. Your answers have been saved locally and will be synced when you reconnect.');
             window.location.href = '/dashboard';

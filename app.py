@@ -307,5 +307,13 @@ def research_dashboard():
                            total_attempts=total_attempts,
                            subject_stats=subject_stats)
 
+@app.route('/admin/audit')
+@login_required
+@role_required('admin')
+def admin_audit():
+    attempts = AttemptLog.query.order_by(AttemptLog.timestamp.desc()).limit(200).all()
+    recommendations = RecommendationLog.query.order_by(RecommendationLog.timestamp.desc()).limit(200).all()
+    return render_template('admin_audit.html', attempts=attempts, recommendations=recommendations)
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

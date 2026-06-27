@@ -6,41 +6,26 @@
  * Restarting with stat
  * Debugger is active!
  * Debugger PIN: 631-326-424
-127.0.0.1 - - [27/Jun/2026 08:15:05] "GET /login HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jun/2026 08:15:05] "GET /static/sw.js HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jun/2026 08:15:05] "[32mGET /dashboard HTTP/1.1[0m" 302 -
-127.0.0.1 - - [27/Jun/2026 08:15:05] "GET /login HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jun/2026 08:15:05] "GET /login?next=/dashboard HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jun/2026 08:15:05] "[32mGET / HTTP/1.1[0m" 302 -
-127.0.0.1 - - [27/Jun/2026 08:15:05] "GET /login HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jun/2026 08:15:05] "[32mPOST /login HTTP/1.1[0m" 302 -
+127.0.0.1 - - [27/Jun/2026 12:04:16] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [27/Jun/2026 12:04:16] "GET /static/sync_bridge.js HTTP/1.1" 200 -
+127.0.0.1 - - [27/Jun/2026 12:04:16] "GET /static/sw.js HTTP/1.1" 200 -
+127.0.0.1 - - [27/Jun/2026 12:04:16] "[32mGET / HTTP/1.1[0m" 302 -
+127.0.0.1 - - [27/Jun/2026 12:04:16] "[32mGET /dashboard HTTP/1.1[0m" 302 -
+127.0.0.1 - - [27/Jun/2026 12:04:16] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [27/Jun/2026 12:04:16] "GET /login?next=/dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [27/Jun/2026 12:04:16] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [27/Jun/2026 12:04:16] "[32mPOST /login HTTP/1.1[0m" 302 -
 /app/app.py:27: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
   return User.query.get(int(user_id))
-127.0.0.1 - - [27/Jun/2026 08:15:05] "GET /dashboard HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jun/2026 08:15:05] "GET /learning_outcome/1 HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jun/2026 08:15:05] "GET /lo/1/quiz HTTP/1.1" 200 -
- * Detected change in '/app/seed_data.py', reloading
- * Restarting with stat
- * Debugger is active!
- * Debugger PIN: 631-326-424
-127.0.0.1 - - [27/Jun/2026 08:16:58] "GET /login HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jun/2026 08:16:58] "GET /static/sw.js HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jun/2026 08:16:58] "[32mGET /dashboard HTTP/1.1[0m" 302 -
-127.0.0.1 - - [27/Jun/2026 08:16:58] "[32mGET / HTTP/1.1[0m" 302 -
-127.0.0.1 - - [27/Jun/2026 08:16:58] "GET /login HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jun/2026 08:16:58] "GET /login?next=/dashboard HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jun/2026 08:16:58] "GET /login HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jun/2026 08:16:59] "[32mPOST /login HTTP/1.1[0m" 302 -
-/app/app.py:27: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
-  return User.query.get(int(user_id))
-127.0.0.1 - - [27/Jun/2026 08:16:59] "GET /dashboard HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jun/2026 08:16:59] "GET /learning_outcome/1 HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jun/2026 08:16:59] "GET /lo/1/quiz HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jun/2026 08:16:59] "[32mPOST /quiz/submit HTTP/1.1[0m" 302 -
-127.0.0.1 - - [27/Jun/2026 08:16:59] "GET /learning_outcome/1 HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jun/2026 08:16:59] "[32mGET /logout HTTP/1.1[0m" 302 -
-127.0.0.1 - - [27/Jun/2026 08:16:59] "GET /login HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jun/2026 08:16:59] "GET /login HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jun/2026 08:17:00] "[32mPOST /login HTTP/1.1[0m" 302 -
-127.0.0.1 - - [27/Jun/2026 08:17:00] "GET /dashboard HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jun/2026 08:17:00] "GET /admin/research HTTP/1.1" 200 -
+127.0.0.1 - - [27/Jun/2026 12:04:16] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [27/Jun/2026 12:04:16] "[36mGET /static/sync_bridge.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [27/Jun/2026 12:04:16] "[32mGET /logout HTTP/1.1[0m" 302 -
+127.0.0.1 - - [27/Jun/2026 12:04:16] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [27/Jun/2026 12:04:16] "[36mGET /static/sync_bridge.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [27/Jun/2026 12:04:16] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [27/Jun/2026 12:04:16] "[36mGET /static/sync_bridge.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [27/Jun/2026 12:04:16] "[32mPOST /login HTTP/1.1[0m" 302 -
+127.0.0.1 - - [27/Jun/2026 12:04:16] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [27/Jun/2026 12:04:16] "[36mGET /static/sync_bridge.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [27/Jun/2026 12:04:17] "GET /admin/audit HTTP/1.1" 200 -
+127.0.0.1 - - [27/Jun/2026 12:04:17] "[36mGET /static/sync_bridge.js HTTP/1.1[0m" 304 -
