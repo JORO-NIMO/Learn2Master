@@ -26,3 +26,15 @@ self.addEventListener('fetch', event => {
     )
   );
 });
+
+// Background Sync Placeholder
+self.addEventListener('sync', event => {
+  if (event.tag === 'sync-assessments') {
+    event.waitUntil(syncAssessments());
+  }
+});
+
+async function syncAssessments() {
+  console.log('Syncing offline assessments...');
+  // Logic to pull from IndexedDB and POST to /quiz/submit
+}

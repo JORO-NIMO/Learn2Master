@@ -1,8 +1,37 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>Learning Progress Trail</h2>
-<p>Track your mastery journey through the Competency-Based Curriculum.</p>
-{% if attempts %}
+<p>Visualizing your mastery journey.</p>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <canvas id="masteryChart" width="400" height="150"></canvas>
+    </div>
+</div>
+
+<script>
+    const ctx = document.getElementById('masteryChart').getContext('2d');
+    const chartData = {
+        labels: [{% for a in attempts | reverse %}"{{ a.timestamp.strftime('%H:%M:%S') }}"{% if not loop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+            label: 'Knowledge Probability (pL)',
+            data: [{% for a in attempts | reverse %}{{ a.p_after }}{% if not loop.last %}, {% endif %}{% endfor %}],
+            borderColor: 'rgb(75, 192, 192)',
+            tension: 0.1,
+            fill: true
+        }]
+    };
+    new Chart(ctx, {
+        type: 'line',
+        data: chartData,
+        options: {
+            scales: {
+                y: { beginAtZero: true, max: 1.0 }
+            }
+        }
+    });
+</script>
+
 <table class="table">
     <thead>
         <tr>
@@ -29,8 +58,5 @@
         {% endfor %}
     </tbody>
 </table>
-{% else %}
-<p>No attempts recorded yet. Start learning from your dashboard!</p>
-{% endif %}
 <a href="{{ url_for('dashboard') }}" class="btn btn-primary">Back to Dashboard</a>
 {% endblock %}

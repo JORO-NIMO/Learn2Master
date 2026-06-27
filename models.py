@@ -10,7 +10,6 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(120), nullable=False)
     role = db.Column(db.String(20), nullable=False) # student, teacher, admin
     school = db.Column(db.String(100))
-    # Indices are implicitly created for unique=True
 
 class Subject(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -23,6 +22,14 @@ class Topic(db.Model):
     name = db.Column(db.String(100), nullable=False)
     order = db.Column(db.Integer)
     learning_outcomes = db.relationship("LearningOutcome", backref="topic", lazy=True)
+    sub_strands = db.relationship("SubStrand", backref="topic", lazy=True)
+
+class SubStrand(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    strand_id = db.Column(db.Integer, db.ForeignKey('topic.id'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    order = db.Column(db.Integer)
+    performance_indicators = db.relationship("PerformanceIndicator", backref="sub_strand", lazy=True)
 
 class LearningOutcome(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -34,11 +41,27 @@ class LearningOutcome(db.Model):
     video_url = db.Column(db.String(200))
     examples = db.Column(db.Text)
 
+class PerformanceIndicator(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    sub_strand_id = db.Column(db.Integer, db.ForeignKey('sub_strand.id'), nullable=False)
+    learning_outcome_id = db.Column(db.Integer, db.ForeignKey('learning_outcome.id'), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    order = db.Column(db.Integer)
+
+class LearningResource(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    learning_outcome_id = db.Column(db.Integer, db.ForeignKey('learning_outcome.id'), nullable=False)
+    type = db.Column(db.String(50))
+    title = db.Column(db.String(200))
+    content = db.Column(db.Text)
+    min_mastery = db.Column(db.Float, default=0.0)
+    max_mastery = db.Column(db.Float, default=1.0)
+
 class Question(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     learning_outcome_id = db.Column(db.Integer, db.ForeignKey('learning_outcome.id'))
     text = db.Column(db.Text, nullable=False)
-    type = db.Column(db.String(50)) # mcq, concept
+    type = db.Column(db.String(50))
     options = db.Column(db.Text)
     correct_answer = db.Column(db.String(200))
 
@@ -48,7 +71,6 @@ class MasteryRecord(db.Model):
     learning_outcome_id = db.Column(db.Integer, db.ForeignKey('learning_outcome.id'), nullable=False)
     knowledge_level = db.Column(db.Float, default=0.0)
     last_updated = db.Column(db.DateTime, default=datetime.utcnow)
-
     __table_args__ = (
         db.UniqueConstraint('user_id', 'learning_outcome_id', name='uq_mastery_user_lo'),
         db.Index('ix_mastery_user_lo', 'user_id', 'learning_outcome_id'),
@@ -62,10 +84,7 @@ class Evidence(db.Model):
     content = db.Column(db.Text)
     status = db.Column(db.String(20), default='pending')
     teacher_feedback = db.Column(db.Text)
-
-    __table_args__ = (
-        db.Index('ix_evidence_user', 'user_id'),
-    )
+    __table_args__ = (db.Index('ix_evidence_user', 'user_id'),)
 
 class RecommendationLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -74,10 +93,7 @@ class RecommendationLog(db.Model):
     recommendation = db.Column(db.Text)
     explanation = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-
-    __table_args__ = (
-        db.Index('ix_rec_log_user_time', 'user_id', 'timestamp'),
-    )
+    __table_args__ = (db.Index('ix_rec_log_user_time', 'user_id', 'timestamp'),)
 
 class AttemptLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -87,16 +103,4 @@ class AttemptLog(db.Model):
     p_before = db.Column(db.Float, nullable=False)
     p_after = db.Column(db.Float, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-
-    __table_args__ = (
-        db.Index('ix_attempt_log_user_lo', 'user_id', 'learning_outcome_id'),
-    )
-
-class LearningResource(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    learning_outcome_id = db.Column(db.Integer, db.ForeignKey('learning_outcome.id'), nullable=False)
-    type = db.Column(db.String(50)) # notes, video, example
-    title = db.Column(db.String(200))
-    content = db.Column(db.Text)
-    min_mastery = db.Column(db.Float, default=0.0)
-    max_mastery = db.Column(db.Float, default=1.0)
+    __table_args__ = (db.Index('ix_attempt_log_user_lo', 'user_id', 'learning_outcome_id'),)

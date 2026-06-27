@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Research Dashboard: Dissertation Metrics</h2>
+<p class="lead">Analytics for Chapter Four: Analysis and Discussion</p>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h3>{{ total_students }}</h3>
+                <p>Total Cohort Size</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <h3>{{ (avg_mastery * 100) | round(1) }}%</h3>
+                <p>Average Cohort Mastery</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <h3>{{ total_attempts }}</h3>
+                <p>Total Learning Interactions</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<h4>Subject Mastery Heatmap</h4>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Subject</th>
+            <th>Learning Outcomes Mastered (Cohort Total)</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for stat in subject_stats %}
+        <tr>
+            <td>{{ stat.name }}</td>
+            <td>{{ stat.mastered }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Back to Admin Panel</a>
+{% endblock %}

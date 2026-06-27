@@ -1,5 +1,6 @@
+import json
 from flask import Flask
-from models import db, User, Subject, Topic, LearningOutcome, LearningResource
+from models import db, User, Subject, Topic, LearningOutcome, LearningResource, Question, SubStrand, PerformanceIndicator
 from werkzeug.security import generate_password_hash
 
 app = Flask(__name__)
@@ -10,11 +11,10 @@ db.init_app(app)
 
 def seed():
     with app.app_context():
-        # Clear existing data if any (optional but good for testing)
         db.drop_all()
         db.create_all()
 
-        # Seed Users
+        # Users
         users = [
             User(username='elijah', password_hash=generate_password_hash('12345'), role='student', school='Demo Secondary School'),
             User(username='teacher', password_hash=generate_password_hash('12345'), role='teacher', school='Demo Secondary School'),
@@ -22,53 +22,27 @@ def seed():
         ]
         db.session.add_all(users)
 
-        # Seed Subjects
+        # CBC Hierarchy: Physics
         physics = Subject(name='Physics')
-        ict = Subject(name='ICT')
-        db.session.add_all([physics, ict])
+        db.session.add(physics)
         db.session.commit()
 
-        # Seed Physics Topic
         mechanics = Topic(subject_id=physics.id, name='Introduction to Mechanics', order=1)
         db.session.add(mechanics)
         db.session.commit()
 
-        # Seed Learning Outcomes for Physics
+        general_physics = SubStrand(strand_id=mechanics.id, name='General Physics Concepts', order=1)
+        db.session.add(general_physics)
+        db.session.commit()
+
         lo1 = LearningOutcome(
             topic_id=mechanics.id,
             name='Distance and Displacement',
             description='Understand the difference between distance and displacement.',
             order=1,
-            notes='Distance is a scalar quantity, while displacement is a vector...',
-            video_url='https://www.youtube.com/embed/placeholder1',
-            examples='Example 1: A car moves 5km north...'
+            notes='Basic scalar vs vector concepts.'
         )
-        lo2 = LearningOutcome(
-            topic_id=mechanics.id,
-            name='Speed and Velocity',
-            description='Distinguish between speed and velocity.',
-            order=2,
-            notes='Speed = distance/time. Velocity = displacement/time.',
-            video_url='https://www.youtube.com/embed/placeholder2',
-            examples='Example: Calculate the velocity of a sprinter...'
-        )
-        db.session.add_all([lo1, lo2])
-
-        # Seed ICT Topic
-        computing = Topic(subject_id=ict.id, name='Computer Systems', order=1)
-        db.session.add(computing)
-        db.session.commit()
-
-        lo3 = LearningOutcome(
-            topic_id=computing.id,
-            name='Hardware Components',
-            description='Identify major hardware components of a computer.',
-            order=1,
-            notes='CPU, RAM, Motherboard, Storage...',
-            video_url='https://www.youtube.com/embed/placeholder3',
-            examples='Look inside a system unit to see the RAM slots.'
-        )
-        db.session.add(lo3)
+        db.session.add(lo1)
         db.session.commit()
 
         # Seed Adaptive Resources for LO1
@@ -80,15 +54,33 @@ def seed():
             min_mastery=0.0,
             max_mastery=0.6
         )
-        res2 = LearningResource(
+        db.session.add(res1)
+
+        pi1 = PerformanceIndicator(
+            sub_strand_id=general_physics.id,
             learning_outcome_id=lo1.id,
-            type='video',
-            title='Advanced Vectors Video',
-            content='Deep dive into vector displacement for high mastery students.',
-            min_mastery=0.6,
-            max_mastery=1.0
+            description='Distinguish between distance and displacement in straight line motion.',
+            order=1
         )
-        db.session.add_all([res1, res2])
+        db.session.add(pi1)
+        db.session.commit()
+
+        # Questions for LO1
+        q1 = Question(
+            learning_outcome_id=lo1.id,
+            text='A student walks 3km North and then 4km East. What is their total distance?',
+            type='mcq',
+            options=json.dumps(['7km', '5km', '1km', '12km']),
+            correct_answer='7km'
+        )
+        q2 = Question(
+            learning_outcome_id=lo1.id,
+            text='In the previous scenario, what is the magnitude of their displacement?',
+            type='mcq',
+            options=json.dumps(['7km', '5km', '1km', '0km']),
+            correct_answer='5km'
+        )
+        db.session.add_all([q1, q2])
 
         db.session.commit()
         print("Data seeded successfully.")

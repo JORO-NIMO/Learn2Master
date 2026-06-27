@@ -1,14 +1,19 @@
 import os
+import json
 from functools import wraps
 from flask import Flask, render_template, redirect, url_for, request, flash
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.security import check_password_hash
 from engine import calculate_bkt, get_recommendation
-from models import db, User, Subject, Topic, LearningOutcome, MasteryRecord, Evidence, RecommendationLog, AttemptLog, LearningResource
+from models import db, User, Subject, Topic, LearningOutcome, MasteryRecord, Evidence, RecommendationLog, AttemptLog, LearningResource, Question, SubStrand, PerformanceIndicator
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///learn2master.db'
+
+@app.template_filter('from_json')
+def from_json_filter(value):
+    return json.loads(value)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', os.urandom(24))
 
 db.init_app(app)
@@ -174,6 +179,12 @@ def submit_evidence(lo_id):
     content = request.form.get('content')
     evidence_type = request.form.get('type', 'text')
 
+    # AI Feature: Basic NLP Keyword Analysis for Reflection Depth
+    keywords = ['learned', 'understand', 'concept', 'difficult', 'mastery', 'demonstrate', 'experiment']
+    depth_score = sum(1 for word in keywords if word in content.lower())
+    nlp_analysis = f"Reflection Depth Score: {depth_score}/{len(keywords)}"
+    content = f"{content} | NLP Analysis: {nlp_analysis}"
+
     evidence = Evidence(
         user_id=current_user.id,
         learning_outcome_id=lo_id,
@@ -218,6 +229,83 @@ def review_evidence(evidence_id):
 def view_progress():
     attempts = AttemptLog.query.filter_by(user_id=current_user.id).order_by(AttemptLog.timestamp.desc()).all()
     return render_template('progress.html', attempts=attempts)
+
+@app.route('/lo/<int:lo_id>/quiz')
+@login_required
+@role_required('student')
+def take_quiz(lo_id):
+    lo = LearningOutcome.query.get_or_404(lo_id)
+    questions = Question.query.filter_by(learning_outcome_id=lo_id).all()
+    return render_template('quiz.html', lo=lo, questions=questions)
+
+@app.route('/quiz/submit', methods=['POST'])
+@login_required
+@role_required('student')
+def submit_quiz():
+    lo_id = request.form.get('lo_id')
+    questions = Question.query.filter_by(learning_outcome_id=lo_id).all()
+
+    correct_count = 0
+    total = len(questions)
+
+    for q in questions:
+        answer = request.form.get(f'q_{q.id}')
+        if answer == q.correct_answer:
+            correct_count += 1
+
+    # Calculate performance for BKT
+    # We'll treat the whole quiz as one or more BKT observations
+    mastery = MasteryRecord.query.filter_by(user_id=current_user.id, learning_outcome_id=lo_id).first()
+    if not mastery:
+        mastery = MasteryRecord(user_id=current_user.id, learning_outcome_id=lo_id, knowledge_level=0.3)
+        db.session.add(mastery)
+
+    # Update BKT for each question to simulate progression within the quiz
+    for q in questions:
+        answer = request.form.get(f'q_{q.id}')
+        is_correct = (answer == q.correct_answer)
+        p_before = mastery.knowledge_level
+        new_level, reasoning = calculate_bkt(p_before, is_correct)
+
+        attempt = AttemptLog(
+            user_id=current_user.id,
+            learning_outcome_id=lo_id,
+            correct=is_correct,
+            p_before=p_before,
+            p_after=new_level
+        )
+        db.session.add(attempt)
+        mastery.knowledge_level = new_level
+
+    db.session.commit()
+    flash(f"Quiz submitted. You got {correct_count}/{total} correct. Mastery updated.")
+    return redirect(url_for('view_lo', lo_id=lo_id))
+
+@app.route('/admin/research')
+@login_required
+@role_required('admin')
+def research_dashboard():
+    # Cohort Analysis for Chapter Four
+    total_students = User.query.filter_by(role='student').count()
+    avg_mastery = db.session.query(db.func.avg(MasteryRecord.knowledge_level)).scalar() or 0
+    total_attempts = AttemptLog.query.count()
+
+    # Mastery counts by subject (basic heatmap logic)
+    subjects = Subject.query.all()
+    subject_stats = []
+    for s in subjects:
+        lo_ids = [lo.id for topic in s.topics for lo in topic.learning_outcomes]
+        mastered_count = MasteryRecord.query.filter(
+            MasteryRecord.learning_outcome_id.in_(lo_ids),
+            MasteryRecord.knowledge_level >= 0.85
+        ).count()
+        subject_stats.append({'name': s.name, 'mastered': mastered_count})
+
+    return render_template('research_dashboard.html',
+                           total_students=total_students,
+                           avg_mastery=avg_mastery,
+                           total_attempts=total_attempts,
+                           subject_stats=subject_stats)
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

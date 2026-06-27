@@ -72,6 +72,7 @@
                     <small>{{ explanation }}</small>
                 </div>
 
+                <a href="{{ url_for('take_quiz', lo_id=lo.id) }}" class="btn btn-warning w-100 mb-3">Start Real Assessment</a>
                 <form action="{{ url_for('take_test', lo_id=lo.id) }}" method="POST" class="mb-2"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="correct" value="true">
                     <button type="submit" class="btn btn-success w-100">Simulate Correct Answer</button>

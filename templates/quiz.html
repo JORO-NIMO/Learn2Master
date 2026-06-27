@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+    <li class="breadcrumb-item active">Quiz: {{ lo.name }}</li>
+  </ol>
+</nav>
+
+<h2>Assessment: {{ lo.name }}</h2>
+<form action="{{ url_for('submit_quiz') }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="lo_id" value="{{ lo.id }}">
+
+    {% for q in questions %}
+    <div class="card mb-3">
+        <div class="card-body">
+            <h5 class="card-title">Question {{ loop.index }}</h5>
+            <p>{{ q.text }}</p>
+
+            {% set options = q.options | from_json %}
+            {% for opt in options %}
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="q_{{ q.id }}" value="{{ opt }}" id="q_{{ q.id }}_{{ loop.index }}" required>
+                <label class="form-check-label" for="q_{{ q.id }}_{{ loop.index }}">
+                    {{ opt }}
+                </label>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+
+    <button type="submit" class="btn btn-primary btn-lg">Submit Assessment</button>
+</form>
+{% endblock %}
+<script>
+    document.querySelector('form').addEventListener('submit', function(e) {
+        if (!navigator.onLine) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const data = {};
+            formData.forEach((value, key) => data[value] = key);
+            localStorage.setItem('offline_quiz_' + Date.now(), JSON.stringify(data));
+            alert('You are offline. Your answers have been saved locally and will be synced when you reconnect.');
+            window.location.href = '/dashboard';
+        }
+    });
+</script>
