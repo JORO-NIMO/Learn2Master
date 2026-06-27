@@ -1,0 +1,17 @@
+{% extends "layouts/base.html" %}
+{% block title %}Advanced Admin Dashboard{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/subjects.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='css/learning.css') }}">{% endblock %}
+{% block content %}
+<section class="hero-panel"><div><p class="eyebrow">System Administration</p><h1>Advanced Admin Account</h1><p>Manage Learn2Master users, schools, curriculum, competencies, question bank, reports, audit logs and proposal alignment.</p></div><div class="hero-badge"><span>System Users</span><strong>{{ summary.users }}</strong></div></section>
+<div class="evidence-grid">
+<div><span>Students</span><strong>{{ summary.students }}</strong></div><div><span>Teachers</span><strong>{{ summary.teachers }}</strong></div><div><span>Admins</span><strong>{{ summary.admins }}</strong></div><div><span>Schools</span><strong>{{ summary.schools }}</strong></div><div><span>Subjects</span><strong>{{ summary.subjects }}</strong></div><div><span>Questions</span><strong>{{ summary.questions }}</strong></div></div>
+<section class="learn-card"><span class="subject-code">Admin Control Centre</span><h2>Management Shortcuts</h2><div class="concept-grid">
+<a class="concept-pill good" href="{{ url_for('admin.users') }}"><span>Users</span><strong>Manage Accounts</strong><small>Students, teachers and admins</small></a>
+<a class="concept-pill good" href="{{ url_for('admin.curriculum') }}"><span>Curriculum</span><strong>Physics + ICT</strong><small>NCDC-aligned outcomes</small></a>
+<a class="concept-pill good" href="{{ url_for('admin.questions') }}"><span>Question Bank</span><strong>{{ summary.questions }}</strong><small>Concept-tagged questions</small></a>
+<a class="concept-pill good" href="{{ url_for('admin.logs') }}"><span>Audit Logs</span><strong>Traceability</strong><small>Activity and offline events</small></a>
+<a class="concept-pill good" href="{{ url_for('admin.reports') }}"><span>Reports</span><strong>Evaluation</strong><small>Chapter Four evidence</small></a>
+<a class="concept-pill good" href="{{ url_for('framework.alignment') }}"><span>Proposal Alignment</span><strong>Framework Map</strong><small>No conceptual loopholes</small></a>
+</div></section>
+<section class="learn-card"><span class="subject-code">Recent Accounts</span><h2>User Register</h2><div class="concept-grid">{% for u in recent_users %}<div class="concept-pill"><span>{{ u.full_name }}</span><strong>{{ u.role_name|title }}</strong><small>{{ u.username }} • {{ u.school_name }}</small></div>{% endfor %}</div></section>
+{% endblock %}

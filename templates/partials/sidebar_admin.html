@@ -1,0 +1,24 @@
+<aside class="sidebar">
+    <div class="brand-block">
+        <div class="brand-mark">L2M</div>
+        <div>
+            <div class="brand-name">Learn2Master</div>
+            <div class="brand-subtitle">Admin Portal</div>
+        </div>
+    </div>
+
+    <nav class="side-nav">
+        <a href="{{ url_for('admin.admin_dashboard') }}" class="nav-link">🏠 <span>Dashboard</span></a>
+        <a href="{{ url_for('admin.users') }}" class="nav-link">👥 <span>Users</span></a>
+        <a href="{{ url_for('admin.schools') }}" class="nav-link">🏫 <span>Schools</span></a>
+        <a href="{{ url_for('admin.curriculum') }}" class="nav-link">📘 <span>Curriculum</span></a>
+        <a href="{{ url_for('admin.competencies') }}" class="nav-link">🎯 <span>Competencies</span></a>
+        <a href="{{ url_for('analytics.analytics_dashboard') }}" class="nav-link">📊 <span>System Analytics</span></a>
+        <a href="{{ url_for('admin.settings') }}" class="nav-link">⚙ <span>Settings</span></a>
+        <a href="{{ url_for('admin.logs') }}" class="nav-link">🧾 <span>Audit Logs</span></a>
+        <a href="{{ url_for('admin.reports') }}" class="nav-link">📋 <span>Reports</span></a>
+        <a href="{{ url_for('framework.alignment') }}" class="nav-link">🧭 <span>Framework Alignment</span></a>
+        <a href="{{ url_for('research.research_dashboard') }}" class="nav-link">🔬 <span>Research Dashboard</span></a>
+        <a href="{{ url_for('auth.logout') }}" class="nav-link">🚪 <span>Logout</span></a>
+    </nav>
+</aside>

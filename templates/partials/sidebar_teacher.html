@@ -1,0 +1,22 @@
+<aside class="sidebar">
+    <div class="brand-block">
+        <div class="brand-mark">L2M</div>
+        <div>
+            <div class="brand-name">Learn2Master</div>
+            <div class="brand-subtitle">Teacher Portal</div>
+        </div>
+    </div>
+
+    <nav class="side-nav">
+        <a href="{{ url_for('teacher.teacher_dashboard') }}" class="nav-link">🏠 <span>Dashboard</span></a>
+        <a href="{{ url_for('teacher.learners') }}" class="nav-link">👨‍🎓 <span>Learners</span></a>
+        <a href="{{ url_for('teacher.mastery_monitor') }}" class="nav-link">🎯 <span>Mastery Monitor</span></a>
+        <a href="{{ url_for('teacher.ai_insights') }}" class="nav-link">🤖 <span>AI Insights</span></a>
+        <a href="{{ url_for('teacher.practical_evidence') }}" class="nav-link">🧪 <span>Practical Evidence</span></a>
+        <a href="{{ url_for('analytics.analytics_dashboard') }}" class="nav-link">📊 <span>Class Analytics</span></a>
+        <a href="{{ url_for('teacher.reports') }}" class="nav-link">📋 <span>Reports</span></a>
+        <a href="{{ url_for('framework.alignment') }}" class="nav-link">🧭 <span>Framework Alignment</span></a>
+        <a href="{{ url_for('research.research_dashboard') }}" class="nav-link">🔬 <span>Research Dashboard</span></a>
+        <a href="{{ url_for('auth.logout') }}" class="nav-link">🚪 <span>Logout</span></a>
+    </nav>
+</aside>

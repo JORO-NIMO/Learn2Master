@@ -1,0 +1,59 @@
+<aside class="sidebar">
+
+    <div class="brand-block">
+
+        <div class="brand-mark">
+            L2M
+        </div>
+
+        <div>
+
+            <div class="brand-name">
+                Learn2Master
+            </div>
+
+            <div class="brand-subtitle">
+                Student Portal
+            </div>
+
+        </div>
+
+    </div>
+
+    <nav class="side-nav">
+
+        <a href="{{ url_for('student.student_dashboard') }}" class="nav-link">
+            🏠 <span>Dashboard</span>
+        </a>
+
+        <a href="{{ url_for('subjects.subjects') }}" class="nav-link">
+            📘 <span>Subjects</span>
+        </a>
+
+        <a href="{{ url_for('courses.courses') }}" class="nav-link">
+            📚 <span>Courses</span>
+        </a>
+
+        <a href="{{ url_for('mastery.mastery') }}" class="nav-link">
+            🎯 <span>Mastery</span>
+        </a>
+
+        <a href="{{ url_for('student.assessments') }}" class="nav-link">
+            📝 <span>Assessments</span>
+        </a>
+
+        <a href="{{ url_for('profile.profile') }}" class="nav-link">
+            🤖 <span>AI Learner Profile</span>
+        </a>
+
+        <a href="{{ url_for('student.my_analytics') }}" class="nav-link">
+            📊 <span>My Analytics</span>
+        </a>
+
+        <a href="{{ url_for('auth.logout') }}" class="nav-link">
+            🚪 <span>Logout</span>
+        </a>
+
+    </nav>
+
+</aside>

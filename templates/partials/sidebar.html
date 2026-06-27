@@ -1,0 +1,43 @@
+<aside class="sidebar">
+    <div class="brand-block">
+        <div class="brand-mark">L2M</div>
+        <div>
+            <div class="brand-name">Learn2Master</div>
+            <div class="brand-subtitle">CBC Mastery AI</div>
+        </div>
+    </div>
+
+    <nav class="side-nav">
+       {% if session.get("role") == "student" %}
+
+<a href="{{ url_for('student.student_dashboard') }}" class="nav-link">
+    🏠 <span>Dashboard</span>
+</a>
+
+{% elif session.get("role") == "teacher" %}
+
+<a href="{{ url_for('teacher.teacher_dashboard') }}" class="nav-link">
+    👨‍🏫 <span>Teacher Dashboard</span>
+</a>
+
+{% elif session.get("role") == "admin" %}
+
+<a href="{{ url_for('admin.admin_dashboard') }}" class="nav-link">
+    ⚙ <span>Admin Dashboard</span>
+</a>
+
+{% endif %}
+        <a href="{{ url_for('courses.courses') }}" class="nav-link">📚 <span>Courses</span></a>
+        <a href="{{ url_for('mastery.mastery') }}" class="nav-link">🎯 <span>Mastery</span></a>
+        <a href="#" class="nav-link muted">📝 <span>Assessments</span></a>
+        <a href="#" class="nav-link muted">🤖 <span>AI Tutor</span></a>
+        <a href="#" class="nav-link muted">📊 <span>Analytics</span></a>
+        <a href="#" class="nav-link muted">👨‍🏫 <span>Teacher</span></a>
+    </nav>
+
+    <div class="research-card mini">
+        <strong>Research Prototype</strong>
+        <span>MUST MSc Information Systems</span>
+        <small>AI-enabled mastery-based learning under CBC</small>
+    </div>
+</aside>
