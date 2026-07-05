@@ -4,7 +4,7 @@ This guide provides instructions for deploying the Learn2Master AI-Enabled Maste
 
 ## Infrastructure Requirements
 - **Container Orchestration**: Docker and Docker Compose (or Kubernetes).
-- **Database**: SQLite (default, stored in `instance/`) or a production SQL database (PostgreSQL/MySQL) via `DATABASE_URL`.
+- **Database**: SQLite (default, stored in `learn2master.db`) or a production SQL database (PostgreSQL/MySQL) via `DATABASE_URL`.
 - **Reverse Proxy**: Nginx or Traefik recommended to handle SSL termination (though `Flask-Talisman` handles HSTS/Security headers).
 
 ## Environment Variables
@@ -25,11 +25,38 @@ Learn2Master is optimized for Render as a single **Web Service**. You do not nee
 - **Build Command**: `pip install -r requirements.txt`
 - **Start Command**: `gunicorn --bind 0.0.0.0:$PORT --workers 4 app:app`
 
+### Persistence (Crucial for SQLite):
+If you use the default SQLite database on Render, **you must attach a Disk**. Otherwise, your data will be deleted every time the service restarts or redeploys.
+1. In Render Dashboard, go to **Disks**.
+2. Create a Disk with name `learn2master-data`.
+3. Mount Path: `/app/instance` (Ensure your app is configured to look here).
+   - *Note: Our default path is `/app/learn2master.db`. For Render Disks, you may need to update `database.py` or `config.py` to use the mounted path.*
+
 ### Database Setup on Render:
-1. Create a **Render PostgreSQL** instance.
+1. Create a **Render PostgreSQL** instance (Highly Recommended over SQLite).
 2. Copy the **Internal Database URL**.
 3. Add it as an environment variable named `DATABASE_URL` in your Web Service settings.
-4. Run the initialization script once via the Render Shell: `python init_db.py`
+4. **Initialization**: Run the initialization script once via the Render Shell:
+   ```bash
+   python init_db.py
+   python seed_data.py
+   ```
+
+## First-Time Deployment Checklist
+1. Create the Web Service on Render.
+2. Configure Environment Variables (`SECRET_KEY`, `DATABASE_URL`, etc.).
+3. Deploy the service.
+4. Open the **Shell** in the Render Dashboard and run:
+   ```bash
+   python init_db.py
+   python seed_data.py
+   ```
+
+## Troubleshooting
+### Error: `sqlite3.OperationalError: no such table: users`
+This error occurs when the database schema has not been initialized.
+- **Solution**: Open the Render Shell for your service and run `python init_db.py`.
+- **Warning**: If you are not using a Render Disk and not using PostgreSQL, you will have to do this after every redeploy. Use **Render PostgreSQL** to avoid this.
 
 ## Docker Deployment
 1. Build the image:
