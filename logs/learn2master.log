@@ -9,3 +9,6 @@
 2026-07-05 19:00:34,617 INFO: Database tables appear to be missing. Initializing... [in /app/app.py:101]
 2026-07-05 19:00:34,785 INFO: Database initialization complete. [in /app/app.py:109]
 2026-07-05 19:00:50,460 INFO: Learn2Master startup [in /app/app.py:85]
+2026-07-05 20:12:17,726 INFO: Learn2Master startup [in /app/app.py:85]
+2026-07-05 20:12:17,757 INFO: Database tables appear to be missing. Initializing... [in /app/app.py:101]
+2026-07-05 20:12:17,976 INFO: Database initialization complete. [in /app/app.py:109]

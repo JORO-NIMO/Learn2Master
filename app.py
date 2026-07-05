@@ -47,7 +47,7 @@ csp = {
         '\'self\'',
         '\'unsafe-inline\''  # Required for some inline scripts in templates
     ],
-    'img-src': ['\'self\'', 'data:']
+    'img-src': ['\'self\'', 'data:', 'images.unsplash.com']
 }
 talisman.init_app(
     app,
