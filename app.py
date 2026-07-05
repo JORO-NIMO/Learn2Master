@@ -97,16 +97,23 @@ with app.app_context():
         # Attempt a simple query to see if the database is initialized
         conn.execute("SELECT 1 FROM users LIMIT 1")
         conn.close()
-    except Exception:
-        app.logger.info("Database tables appear to be missing. Initializing...")
+    except Exception as e:
+        app.logger.warning(f"Database table check failed: {e}")
+        app.logger.info("Tables may be missing. Attempting initialization...")
         db_url = os.environ.get("DATABASE_URL")
-        if db_url:
-            if db_url.startswith("postgres://"):
-                db_url = db_url.replace("postgres://", "postgresql://", 1)
-            init_db.run_postgres(db_url)
-        else:
-            init_db.run_sqlite()
-        app.logger.info("Database initialization complete.")
+        try:
+            if db_url:
+                if db_url.startswith("postgres://"):
+                    db_url = db_url.replace("postgres://", "postgresql://", 1)
+                init_db.run_postgres(db_url)
+            else:
+                init_db.run_sqlite()
+            app.logger.info("Database initialization check/attempt complete.")
+        except Exception as init_e:
+            app.logger.error(f"FATAL: Database initialization failed: {init_e}")
+            if db_url and "supabase.co" in db_url:
+                app.logger.error("TIP: Supabase on Render often requires the Connection Pooler URL (port 6543).")
+                app.logger.error("Please update your DATABASE_URL in the Render Dashboard.")
 
 login_manager = LoginManager()
 login_manager.login_view = "auth.login_view"

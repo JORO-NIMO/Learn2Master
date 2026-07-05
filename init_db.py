@@ -1,9 +1,6 @@
 import os
 import sqlite3
-try:
-    import psycopg2
-except ImportError:
-    psycopg2 = None
+import database
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
@@ -28,7 +25,7 @@ def run_sqlite():
 def run_postgres(url):
     print("Initializing Supabase/PostgreSQL database...")
     try:
-        conn = psycopg2.connect(url)
+        conn = database.connect_to_postgres(url)
         conn.autocommit = True
         cur = conn.cursor()
 
