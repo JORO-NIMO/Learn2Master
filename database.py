@@ -1,3 +1,4 @@
+import logging
 import sqlite3
 import os
 import re
@@ -69,8 +70,18 @@ def get_db():
         if db_url.startswith("postgres://"):
             db_url = db_url.replace("postgres://", "postgresql://", 1)
         if psycopg2:
-            conn = psycopg2.connect(db_url)
-            return PostgresConnectionWrapper(conn)
+            try:
+                # Ensure sslmode=require for Supabase if not present
+                if "?" not in db_url:
+                    db_url += "?sslmode=require"
+                elif "sslmode=" not in db_url:
+                    db_url += "&sslmode=require"
+
+                conn = psycopg2.connect(db_url)
+                return PostgresConnectionWrapper(conn)
+            except Exception as e:
+                logging.error(f"Database connection error: {e}")
+                raise
 
     conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
