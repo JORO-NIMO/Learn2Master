@@ -1544,6 +1544,7 @@ def admin_kb_upload():
         if file and file.filename:
             # MIME validation
             file_content = file.read()
+            file.seek(0) # Reset pointer after read
             mime = magic.from_buffer(file_content, mime=True)
             allowed_mimes = {
                 'text/plain', 'text/markdown', 'application/json', 'application/pdf',
@@ -1564,6 +1565,7 @@ def admin_kb_upload():
                 return redirect(url_for("admin.admin_kb_upload"))
 
             filepath = kb.directory / filename
+            file.save(str(filepath))
 
             # Use unified processing method
             success, _ = kb.process_file(str(filepath))

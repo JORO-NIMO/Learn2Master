@@ -424,7 +424,6 @@ def teacher_kb_upload():
             file.seek(0)
 
             if usage + file_size > LIMIT:
-                filepath.unlink()
                 flash("Upload failed: You have exceeded your 10MB storage limit.", "danger")
                 return redirect(url_for("teacher.teacher_kb_upload"))
 
