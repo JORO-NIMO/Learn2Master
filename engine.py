@@ -28,6 +28,18 @@ _groq_circuit_open_until = 0.0
 FAILURE_THRESHOLD = 5
 BACKOFF_SECONDS = 60
 
+def retry_api_call(func, max_retries=3, initial_backoff=1):
+    """Retries an API call with exponential backoff."""
+    for attempt in range(max_retries):
+        try:
+            return func()
+        except Exception as e:
+            if attempt == max_retries - 1:
+                raise e
+            wait = initial_backoff * (2 ** attempt)
+            logger.warning(f"API call failed (attempt {attempt + 1}/{max_retries}): {e}. Retrying in {wait}s...")
+            time.sleep(wait)
+
 def calculate_bkt(current_p, correct):
     p_transit = float(os.environ.get('BKT_TRANSIT', 0.1))
     p_slip = float(os.environ.get('BKT_SLIP', 0.1))
@@ -196,19 +208,33 @@ class KnowledgeBase:
                     data = json.load(f)
                     text = self._extract_text(data)
             elif filename.endswith('.pdf'):
-                reader = PdfReader(filepath)
-                for page in reader.pages:
-                    try:
-                        extracted = page.extract_text()
-                        if extracted: text += extracted + "\n"
-                    except Exception as pg_err:
-                        logger.warning(f"Error on PDF page in {filename}: {pg_err}")
+                try:
+                    reader = PdfReader(filepath)
+                    if reader.is_encrypted:
+                        logger.warning(f"PDF {filename} is encrypted. Attempting to decrypt with empty password.")
+                        try:
+                            reader.decrypt("")
+                        except:
+                            logger.error(f"Could not decrypt {filename}")
+                            return False, 0
+
+                    for page in reader.pages:
+                        try:
+                            extracted = page.extract_text()
+                            if extracted: text += extracted + "\n"
+                        except Exception as pg_err:
+                            logger.warning(f"Error on PDF page in {filename}: {pg_err}")
+                except Exception as pdf_err:
+                    logger.error(f"Failed to read PDF {filename}: {pdf_err}")
+                    return False, 0
         except Exception as e:
             logger.error(f"Error extracting text from {filename}: {e}")
             return False, 0
 
         text = text.strip()
-        if not text: return False, 0
+        if not text:
+            logger.warning(f"No text extracted from {filename}.")
+            return False, 0
 
         # AI Summarization for large files or if requested
         processed_size = len(text)
@@ -222,11 +248,30 @@ class KnowledgeBase:
         embeddings_list = []
         if self.hf_client:
             try:
-                embeddings_list = self.hf_client.feature_extraction(new_chunks, model=self.model_id)
+                embeddings_list = retry_api_call(
+                    lambda: self.hf_client.feature_extraction(new_chunks, model=self.model_id)
+                )
             except Exception as e:
-                logger.error(f"Error generating embeddings for {filename}: {e}")
+                logger.error(f"Error generating embeddings for {filename} after retries: {e}")
 
         with self._lock:
+            # Sync to Supabase Storage first
+            if self.supabase:
+                try:
+                    # Check if file exists in storage
+                    storage_files = self.supabase.storage.from_("knowledge-base").list()
+                    exists = any(f['name'] == filename for f in storage_files)
+                    if not exists:
+                        logger.info(f"Uploading {filename} to Supabase Storage...")
+                        with open(filepath, 'rb') as f:
+                            self.supabase.storage.from_("knowledge-base").upload(
+                                path=filename,
+                                file=f,
+                                file_options={"content-type": "application/octet-stream"}
+                            )
+                except Exception as e:
+                    logger.error(f"Supabase Storage upload error for {filename}: {e}")
+
             self.chunks.extend(new_chunks)
             if embeddings_list:
                 new_emb_array = np.array(embeddings_list)
@@ -235,7 +280,7 @@ class KnowledgeBase:
                 else:
                     self.embeddings = np.vstack([self.embeddings, new_emb_array])
 
-            # Sync to Supabase
+            # Sync to Supabase Vector DB
             supabase_success = True
             if self.supabase and embeddings_list:
                 try:
@@ -247,9 +292,12 @@ class KnowledgeBase:
                         }
                         for chunk, emb in zip(new_chunks, embeddings_list)
                     ]
-                    self.supabase.table('kb_documents').upsert(data_to_insert).execute()
+                    # Attempt upsert
+                    retry_api_call(
+                        lambda: self.supabase.table('kb_documents').upsert(data_to_insert).execute()
+                    )
                 except Exception as e:
-                    logger.error(f"Supabase sync error for {filename}: {e}")
+                    logger.error(f"Supabase Vector DB sync error for {filename}: {e}")
                     supabase_success = False
 
             if supabase_success or not self.supabase:
@@ -302,7 +350,13 @@ class KnowledgeBase:
     def get_query_embedding(self, query):
         if not self.hf_client:
              return None
-        return self.hf_client.feature_extraction(query, model=self.model_id)
+        try:
+            return retry_api_call(
+                lambda: self.hf_client.feature_extraction(query, model=self.model_id)
+            )
+        except Exception as e:
+            logger.error(f"Failed to get query embedding after retries: {e}")
+            return None
 
     def search(self, query, top_k=3):
         query_embedding = self.get_query_embedding(query)
@@ -373,7 +427,9 @@ class KnowledgeBase:
         embeddings_list = []
         if self.hf_client:
             try:
-                embeddings_list = self.hf_client.feature_extraction(new_chunks, model=self.model_id)
+                embeddings_list = retry_api_call(
+                    lambda: self.hf_client.feature_extraction(new_chunks, model=self.model_id)
+                )
             except Exception as e:
                 logger.error(f"Error generating embeddings in add_knowledge: {e}")
 
@@ -383,7 +439,9 @@ class KnowledgeBase:
                     {'content': chunk, 'embedding': emb, 'metadata': metadata or {}}
                     for chunk, emb in zip(new_chunks, embeddings_list)
                 ]
-                self.supabase.table('kb_documents').insert(data_to_insert).execute()
+                retry_api_call(
+                    lambda: self.supabase.table('kb_documents').insert(data_to_insert).execute()
+                )
             except Exception as e:
                 logger.error(f"Supabase bulk insertion error in add_knowledge: {e}")
 
@@ -426,11 +484,15 @@ class AIEngine:
             from groq import Groq
             client = Groq(api_key=groq_api_key)
             prompt = f"Summarize the following study material into a concise pedagogical summary of approximately 5KB (about 800-1000 words) that captures all key concepts and definitions for vector search: \n\n {text[:15000]}"
-            chat_completion = client.chat.completions.create(
-                messages=[{"role": "user", "content": prompt}],
-                model="llama3-70b-8192",
-                temperature=0.3,
-            )
+
+            def make_call():
+                return client.chat.completions.create(
+                    messages=[{"role": "user", "content": prompt}],
+                    model="llama3-70b-8192",
+                    temperature=0.3,
+                )
+
+            chat_completion = retry_api_call(make_call)
             return chat_completion.choices[0].message.content
         except Exception as e:
             logger.error(f"Compression error: {e}")
@@ -453,11 +515,15 @@ class AIEngine:
             from groq import Groq
             client = Groq(api_key=groq_api_key)
             prompt = f"Evaluate the following student work data and provide a holistic pedagogical assessment of their progress, strengths, and areas for improvement in Physics and ICT: \n\n {data_summary}"
-            chat_completion = client.chat.completions.create(
-                messages=[{"role": "user", "content": prompt}],
-                model="llama3-8b-8192",
-                temperature=0.5,
-            )
+
+            def make_call():
+                return client.chat.completions.create(
+                    messages=[{"role": "user", "content": prompt}],
+                    model="llama3-8b-8192",
+                    temperature=0.5,
+                )
+
+            chat_completion = retry_api_call(make_call)
             return chat_completion.choices[0].message.content
         except Exception as e:
             return f"Error generating evaluation: {e}"
@@ -516,11 +582,15 @@ class AIEngine:
             client = Groq(api_key=groq_api_key)
             system_prompt = f"You are the Learn2Master AI Assistant. Help {username} with Physics and ICT. CBC context: {context_str}"
             user_message = f"<query>{user_input}</query>"
-            chat_completion = client.chat.completions.create(
-                messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_message}],
-                model="llama3-8b-8192",
-                temperature=0.7,
-            )
+
+            def make_call():
+                return client.chat.completions.create(
+                    messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_message}],
+                    model="llama3-8b-8192",
+                    temperature=0.7,
+                )
+
+            chat_completion = retry_api_call(make_call)
             response_text = chat_completion.choices[0].message.content
             _groq_failure_count = 0
             AIEngine.log_interaction_to_training_api(user_input, user_id, context, response_text)

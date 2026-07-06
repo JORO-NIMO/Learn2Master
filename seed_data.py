@@ -63,7 +63,8 @@ school_id = get_id("SELECT school_id FROM schools WHERE school_name='Kigezi High
 # Users
 pwd_hash = generate_password_hash('12345')
 users = [
-    ('admin', 'Admin User', 'super_admin'),
+    ('superadmin', 'Super Admin', 'super_admin'),
+    ('admin', 'School Admin', 'school_admin'),
     ('teacher', 'Main Teacher', 'teacher'),
     ('elijah', 'Elijah Learner', 'learner'),
 ]
@@ -86,13 +87,61 @@ execute("INSERT INTO subjects (subject_name) SELECT ? WHERE NOT EXISTS (SELECT 1
 physics_id = get_id("SELECT subject_id FROM subjects WHERE subject_name='Physics'")
 
 # Topics
-topics = [
-    (ict_id, 'Introduction to ICT'),
-    (physics_id, 'Introduction to Physics'),
+execute("INSERT INTO topics (subject_id, topic_title) VALUES (?, ?)", (ict_id, 'Introduction to ICT'))
+topic_id = get_id("SELECT topic_id FROM topics WHERE topic_title='Introduction to ICT'")
+
+# Competencies
+execute("INSERT INTO competencies (subject_id, topic_id, competency_code, competency_name) VALUES (?, ?, ?, ?)",
+        (ict_id, topic_id, 'ICT-C1', 'Basic ICT Concepts'))
+comp_id = get_id("SELECT competency_id FROM competencies WHERE competency_code='ICT-C1'")
+
+# Learning Outcomes
+outcomes = [
+    (comp_id, topic_id, 'ICT-LO1', 'Identify ICT Components', 1),
+    (comp_id, topic_id, 'ICT-LO2', 'Explain ICT Functions', 2),
 ]
 
-for sub_id, name in topics:
-    execute("INSERT INTO topics (subject_id, topic_title) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM topics WHERE topic_title=? AND subject_id=?)", (sub_id, name, name, sub_id))
+for c_id, t_id, code, name, seq in outcomes:
+    execute("""
+        INSERT INTO learning_outcomes (competency_id, topic_id, outcome_code, outcome_name, sequence_order)
+        VALUES (?, ?, ?, ?, ?)
+    """, (c_id, t_id, code, name, seq))
+    o_id = get_id("SELECT outcome_id FROM learning_outcomes WHERE outcome_code=?", (code,))
+
+    # Lesson
+    execute("INSERT INTO lessons (course_id, outcome_id, lesson_title, sequence_order) VALUES (?, ?, ?, ?)",
+            (1, o_id, f"Lesson on {name}", seq))
+    l_id = get_id("SELECT lesson_id FROM lessons WHERE outcome_id=?", (o_id,))
+
+    # Assessments
+    for atype in ['pretest', 'practice', 'posttest']:
+        execute("INSERT INTO assessments (lesson_id, assessment_title, assessment_type) VALUES (?, ?, ?)",
+                (l_id, f"{name} {atype}", atype))
+        aid = get_id("SELECT assessment_id FROM assessments WHERE lesson_id=? AND assessment_type=?", (l_id, atype))
+
+        # Question
+        execute("""
+            INSERT INTO questions (assessment_id, question_text, concept_tag, correct_answer)
+            VALUES (?, ?, ?, ?)
+        """, (aid, f"Question for {code} {atype}", "General", "1"))
+        qid = get_id("SELECT question_id FROM questions WHERE assessment_id=?", (aid,))
+
+        # Option
+        execute("INSERT INTO question_options (question_id, option_text, is_correct) VALUES (?, ?, 1)",
+                (qid, "Correct Option"))
+
+# System Settings
+settings = [
+    ('ai_adaptivity_level', 'balanced', 'AI & Personalization Settings', 'select'),
+    ('at_risk_threshold', '60', 'Notifications & Interventions', 'number'),
+]
+
+for key, val, cat, stype in settings:
+    execute("""
+        INSERT INTO system_settings (setting_key, setting_value, setting_category, setting_type)
+        SELECT ?, ?, ?, ?
+        WHERE NOT EXISTS (SELECT 1 FROM system_settings WHERE setting_key=?)
+    """, (key, val, cat, stype, key))
 
 conn.commit()
 logger.info("Seed process completed successfully!")
