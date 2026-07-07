@@ -1,3 +1,8 @@
+-- ============================================================
+-- LEGACY: Learn2Master V8 SQLite Schema (original)
+-- DO NOT USE for Supabase — use database_v2_postgres.sql instead.
+-- Kept for dissertation reference only.
+-- ============================================================
 PRAGMA foreign_keys = ON;
 
 DROP TABLE IF EXISTS audit_logs;

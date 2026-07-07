@@ -847,3 +847,19 @@ a{
         padding: 42px 28px;
     }
 }
+
+/* ======================
+   FLASH / ALERT MESSAGES
+   Used on login.html and register.html
+====================== */
+.l2m-alert {
+    padding: 13px 16px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    font-weight: 600;
+    font-size: 14px;
+}
+.l2m-alert-success  { background: #ecfdf5; color: #027a48; border: 1px solid #a7f3d0; }
+.l2m-alert-danger   { background: #fef3f2; color: #b42318; border: 1px solid #fecaca; }
+.l2m-alert-warning  { background: #fffaeb; color: #b54708; border: 1px solid #fde68a; }
+.l2m-alert-info     { background: #eff8ff; color: #175cd3; border: 1px solid #bfdbfe; }

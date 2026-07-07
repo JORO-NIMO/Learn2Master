@@ -1,2 +1,22 @@
-Flask>=3.0.0
-Werkzeug>=3.0.0
+# ── Learn2Master — Python dependencies ───────────────────────────────────────
+# Install with: pip install -r requirements.txt
+
+# Web framework
+Flask==3.0.3
+Werkzeug==3.0.3
+
+# CSRF protection
+Flask-WTF==1.2.1
+WTForms==3.1.2
+
+# PostgreSQL driver (binary wheels — no system libpq required)
+psycopg2-binary==2.9.9
+
+# Supabase Python client (used for Storage file uploads)
+supabase==2.4.6
+
+# Environment variable management
+python-dotenv==1.0.1
+
+# Production WSGI server
+gunicorn==22.0.0

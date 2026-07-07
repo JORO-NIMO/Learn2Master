@@ -2,7 +2,7 @@
 {% block title %}Advanced Admin Dashboard{% endblock %}
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/subjects.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='css/learning.css') }}">{% endblock %}
 {% block content %}
-<section class="hero-panel"><div><p class="eyebrow">System Administration</p><h1>Advanced Admin Account</h1><p>Manage Learn2Master users, schools, curriculum, competencies, question bank, reports, audit logs and proposal alignment.</p></div><div class="hero-badge"><span>System Users</span><strong>{{ summary.users }}</strong></div></section>
+<section class="hero-panel"><div><p class="eyebrow">System Administration</p><h1>Welcome, {{ session.get('full_name', 'Administrator') }}</h1><p>Manage Learn2Master users, schools, curriculum, competencies, question bank, reports, audit logs and proposal alignment.</p></div><div class="hero-badge"><span>System Users</span><strong>{{ summary.users }}</strong></div></section>
 <div class="evidence-grid">
 <div><span>Students</span><strong>{{ summary.students }}</strong></div><div><span>Teachers</span><strong>{{ summary.teachers }}</strong></div><div><span>Admins</span><strong>{{ summary.admins }}</strong></div><div><span>Schools</span><strong>{{ summary.schools }}</strong></div><div><span>Subjects</span><strong>{{ summary.subjects }}</strong></div><div><span>Questions</span><strong>{{ summary.questions }}</strong></div></div>
 <section class="learn-card"><span class="subject-code">Admin Control Centre</span><h2>Management Shortcuts</h2><div class="concept-grid">

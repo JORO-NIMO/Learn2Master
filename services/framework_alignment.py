@@ -49,9 +49,9 @@ PROPOSAL_COMPONENTS = [
     },
     {
         "component": "Offline Functionality and Resource Optimization Layer",
-        "implemented_as": "Offline-ready design placeholder, cache service worker skeleton and local SQLite prototype database",
+        "implemented_as": "Offline-ready design with service worker cache skeleton, offline_sync_queue table in Supabase, and low-bandwidth-friendly server-rendered HTML",
         "status": "Prototype layer added",
-        "evidence": "static/js/offline.js, service-worker.js, SQLite local DB",
+        "evidence": "static/js/offline.js, service-worker.js, offline_sync_queue (Supabase PostgreSQL)",
     },
 ]
 

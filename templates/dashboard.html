@@ -4,7 +4,7 @@
 <div class="page-hero">
     <div>
         <h1>Welcome back, {{ user.full_name if user else session.get('full_name','Learner') }} 👋</h1>
-        <p>Learn2Master V3 is the working implementation of an AI-enabled framework for sequential mastery-based learning under CBC.</p>
+        <p>Learn2Master is the working implementation of an AI-enabled framework for sequential mastery-based learning under Uganda's CBC.</p>
     </div>
     <div class="research-card" style="margin:0;min-width:260px">
         <strong>Research Identity</strong>
@@ -17,20 +17,29 @@
     <div class="card metric-card"><div class="metric-icon">📈</div><strong>{{ dashboard_data.progress_percentage }}%</strong><span>Overall Mastery Progress</span><div class="progress-track"><div class="progress-fill" style="width:{{ dashboard_data.progress_percentage }}%"></div></div></div>
     <div class="card metric-card"><div class="metric-icon">📚</div><strong>{{ dashboard_data.total_courses }}</strong><span>Available Courses</span></div>
     <div class="card metric-card"><div class="metric-icon">🎯</div><strong>{{ dashboard_data.mastered_outcomes }}</strong><span>Mastered Outcomes</span></div>
-    <div class="card metric-card"><div class="metric-icon">🔥</div><strong>5</strong><span>Learning Streak</span></div>
+    <div class="card metric-card"><div class="metric-icon">🔥</div><strong>{{ activities|length }}</strong><span>Recent Activities</span></div>
 </div>
 
 <div class="grid grid-2" style="margin-top:22px">
     <div class="card ai-card">
         <span class="badge">Learn2Master AI</span>
         <h3>Explainable Recommendation</h3>
-        <p>Based on your latest mastery record, the system recommends targeted revision before unlocking the next competency.</p>
-        <div class="ai-grid">
-            <div class="ai-item"><small>Weak Area</small><strong>Variables / Practical Application</strong></div>
-            <div class="ai-item"><small>Current Mastery</small><strong>62%</strong></div>
-            <div class="ai-item"><small>Suggested Lesson</small><strong>Introduction to Variables</strong></div>
-            <div class="ai-item"><small>Expected Mastery</small><strong>87%</strong></div>
-        </div>
+        {% if activities %}
+            <p>Based on your recent activity, continue progressing through your active learning outcomes.</p>
+            <div class="ai-grid">
+                {% for activity in activities[:2] %}
+                <div class="ai-item"><small>{{ activity.activity_type }}</small><strong>{{ activity.activity_description }}</strong></div>
+                {% endfor %}
+                <div class="ai-item"><small>Mastered Outcomes</small><strong>{{ dashboard_data.mastered_outcomes }} / {{ dashboard_data.total_outcomes }}</strong></div>
+                <div class="ai-item"><small>Overall Progress</small><strong>{{ dashboard_data.progress_percentage }}%</strong></div>
+            </div>
+        {% else %}
+            <p>Start a learning pathway to receive adaptive AI recommendations based on your assessment evidence.</p>
+            <div class="ai-grid">
+                <div class="ai-item"><small>Status</small><strong>Awaiting first assessment</strong></div>
+                <div class="ai-item"><small>Action</small><strong>Select a subject below</strong></div>
+            </div>
+        {% endif %}
     </div>
     <div class="card">
         <h3 style="margin-top:0">CBC Mastery Flow</h3>

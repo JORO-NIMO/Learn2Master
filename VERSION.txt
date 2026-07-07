@@ -1,2 +1,10 @@
-Learn2Master V8 Dissertation Final Edition
-Proposal-aligned research prototype
+Learn2Master V8 — Supabase Edition
+AI-Enabled Framework for Mastery-Based Learning under CBC
+MSc Information Systems Dissertation — MUST 2026
+
+Stack:        Flask 3.0.3 + Supabase (PostgreSQL + Storage + RLS)
+Database:     Supabase PostgreSQL (28 tables, psycopg2 connection pool)
+Auth:         Werkzeug password hashing + Flask server-side sessions
+Security:     CSRF (Flask-WTF) + RLS policies + role guards
+File storage: Supabase Storage (practical-evidence bucket, private)
+Deployment:   gunicorn (Procfile) + python-dotenv (.env)

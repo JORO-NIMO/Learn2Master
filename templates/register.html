@@ -31,12 +31,13 @@
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     {% for category, message in messages %}
-                        <div class="alert {{ category }}">{{ message }}</div>
+                        <div class="l2m-alert l2m-alert-{{ category }}">{{ message }}</div>
                     {% endfor %}
                 {% endif %}
             {% endwith %}
 
             <form method="POST" action="{{ url_for('auth.register') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="form-grid">
                     <div class="input-group">
                         <label>Full Name</label>
@@ -62,11 +63,8 @@
 
                     <div class="input-group">
                         <label>Role</label>
-                        <select name="role" required>
-                            <option value="student">Student</option>
-                            <option value="teacher">Teacher</option>
-                            <option value="admin">Admin</option>
-                        </select>
+                        <input type="text" value="Student" disabled style="background:#f0f4f9;color:#64748b;">
+                        <!-- Role is always Student. Admins create teacher/admin accounts via the admin panel. -->
                     </div>
                 </div>
 

@@ -1,0 +1,39 @@
+# ── Secrets & credentials ────────────────────────────────────────────────────
+.env
+*.env
+
+# ── SQLite (legacy — do not commit the local database) ───────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Python cache ─────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+venv/
+env/
+.venv/
+.env/
+
+# ── Uploads (use Supabase Storage instead) ───────────────────────────────────
+uploads/
+
+# ── Build / dist artifacts ───────────────────────────────────────────────────
+.dist/
+dist/
+build/
+*.egg-info/
+
+# ── OS artifacts ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp

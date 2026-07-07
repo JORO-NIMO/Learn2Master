@@ -1,41 +1,57 @@
+"""services/learner_profile_engine.py — Learner profile queries (Supabase/PostgreSQL edition)."""
 from collections import Counter
 
 
 def learner_profile(conn, learner_id):
-    user = conn.execute("""
+    cur = conn.cursor()
+
+    cur.execute("""
         SELECT u.*, s.school_name
         FROM users u
         LEFT JOIN schools s ON u.school_id = s.school_id
-        WHERE u.user_id = ?
-    """, (learner_id,)).fetchone()
+        WHERE u.user_id = %s
+    """, (learner_id,))
+    user = cur.fetchone()
 
-    profile = conn.execute("SELECT * FROM learner_profiles WHERE learner_id = ?", (learner_id,)).fetchone()
-    records = conn.execute("""
-        SELECT mr.*, lo.outcome_name, c.course_title, sub.subject_name
+    cur.execute("SELECT * FROM learner_profiles WHERE learner_id = %s", (learner_id,))
+    profile = cur.fetchone()
+
+    cur.execute("""
+        SELECT DISTINCT ON (mr.mastery_id)
+               mr.*, lo.outcome_name, c.course_title, sub.subject_name
         FROM mastery_records mr
         JOIN learning_outcomes lo ON mr.outcome_id = lo.outcome_id
         JOIN competencies comp ON lo.competency_id = comp.competency_id
         JOIN subjects sub ON comp.subject_id = sub.subject_id
         LEFT JOIN lessons l ON l.outcome_id = lo.outcome_id
         LEFT JOIN courses c ON l.course_id = c.course_id
-        WHERE mr.learner_id = ?
-        ORDER BY mr.updated_at DESC
-    """, (learner_id,)).fetchall()
+        WHERE mr.learner_id = %s
+        ORDER BY mr.mastery_id, mr.updated_at DESC
+    """, (learner_id,))
+    records = cur.fetchall()
 
-    concepts = conn.execute("""
+    cur.execute("""
         SELECT concept_tag, latest_score, concept_status, attempt_count
         FROM concept_mastery
-        WHERE learner_id = ?
+        WHERE learner_id = %s
         ORDER BY latest_score ASC, attempt_count DESC
-    """, (learner_id,)).fetchall()
+    """, (learner_id,))
+    concepts = cur.fetchall()
 
-    attempts = conn.execute("SELECT COUNT(*) AS total FROM assessment_attempts WHERE learner_id = ?", (learner_id,)).fetchone()["total"]
-    logs = conn.execute("SELECT * FROM activity_logs WHERE learner_id = ? ORDER BY created_at DESC LIMIT 8", (learner_id,)).fetchall()
+    cur.execute("SELECT COUNT(*) AS total FROM assessment_attempts WHERE learner_id = %s", (learner_id,))
+    attempts = cur.fetchone()["total"]
+
+    cur.execute("""
+        SELECT * FROM activity_logs
+        WHERE learner_id = %s ORDER BY created_at DESC LIMIT 8
+    """, (learner_id,))
+    logs = cur.fetchall()
+    cur.close()
 
     avg_mastery = round(sum(r["mastery_score"] for r in records) / len(records), 1) if records else 0
-    mastered = sum(1 for r in records if r["mastery_status"] == "Mastered")
-    weak = [c for c in concepts if c["latest_score"] < 70]
-    strong = [c for c in concepts if c["latest_score"] >= 70]
+    mastered    = sum(1 for r in records if r["mastery_status"] == "Mastered")
+    weak        = [c for c in concepts if c["latest_score"] < 70]
+    strong      = [c for c in concepts if c["latest_score"] >= 70]
 
     if attempts <= 2:
         pace = "New learner"
@@ -47,21 +63,22 @@ def learner_profile(conn, learner_id):
         pace = "Needs guided support"
 
     summary = (
-        f"This learner has completed {attempts} assessment attempt(s), mastered {mastered} outcome record(s), "
+        f"This learner has completed {attempts} assessment attempt(s), "
+        f"mastered {mastered} outcome record(s), "
         f"and currently has an AI confidence average of {avg_mastery}%."
     )
 
     return {
-        "user": user,
-        "profile": profile,
-        "records": records,
-        "concepts": concepts,
-        "weak_concepts": weak[:5],
+        "user":            user,
+        "profile":         profile,
+        "records":         records,
+        "concepts":        concepts,
+        "weak_concepts":   weak[:5],
         "strong_concepts": strong[:5],
-        "attempts": attempts,
-        "avg_mastery": avg_mastery,
-        "mastered": mastered,
-        "learning_pace": pace,
-        "ai_summary": summary,
-        "logs": logs,
+        "attempts":        attempts,
+        "avg_mastery":     avg_mastery,
+        "mastered":        mastered,
+        "learning_pace":   pace,
+        "ai_summary":      summary,
+        "logs":            logs,
     }

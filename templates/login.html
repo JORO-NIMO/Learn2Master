@@ -23,12 +23,13 @@
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     {% for category, message in messages %}
-                        <div class="alert {{ category }}">{{ message }}</div>
+                        <div class="l2m-alert l2m-alert-{{ category }}">{{ message }}</div>
                     {% endfor %}
                 {% endif %}
             {% endwith %}
 
             <form method="POST" action="{{ url_for('auth.login') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="input-group">
                     <label>Username</label>
                     <input type="text" name="username" placeholder="Enter your username" required>
