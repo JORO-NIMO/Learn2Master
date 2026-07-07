@@ -1568,7 +1568,7 @@ def admin_kb_upload():
             file.save(str(filepath))
 
             # Use unified processing method
-            success, _ = kb.process_file(str(filepath))
+            success, _, synced = kb.process_file(str(filepath))
 
             if success:
                 conn = get_db()
@@ -1576,6 +1576,10 @@ def admin_kb_upload():
                 conn.commit()
                 conn.close()
                 flash(f"File {filename} uploaded and KB updated.", "success")
+
+                # Cleanup local file only if successfully synced to cloud storage
+                if synced and os.path.exists(str(filepath)):
+                    os.remove(str(filepath))
             else:
                 flash(f"Error processing {filename}.", "danger")
 

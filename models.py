@@ -83,3 +83,11 @@ class BKTMastery(db.Model):
     concept_tag = db.Column(db.String(100), nullable=False)
     probability_mastery = db.Column(db.Float, default=0.20)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class KBProcessedFile(db.Model):
+    __tablename__ = 'kb_processed_files'
+    file_id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(255), unique=True, nullable=False)
+    file_hash = db.Column(db.String(64), nullable=False)
+    status = db.Column(db.String(50), default='Processed')
+    processed_at = db.Column(db.DateTime, default=datetime.utcnow)

@@ -13,6 +13,7 @@ from PyPDF2 import PdfReader
 from huggingface_hub import InferenceClient
 from groq import Groq
 from supabase import create_client, Client
+from database import get_db
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -78,7 +79,6 @@ class KnowledgeBase:
         base_dir = Path(__file__).parent.resolve()
         self.directory = (base_dir / directory).resolve()
         self.dynamic_kb_path = self.directory / "_dynamic.jsonl"
-        self.processed_files_path = self.directory / "_processed_files.json"
         self.model_id = model_id
         self.chunks = []
         self.embeddings = None
@@ -106,20 +106,29 @@ class KnowledgeBase:
         self.load_and_process()
 
     def load_processed_files_metadata(self):
-        if self.processed_files_path.exists():
-            try:
-                with open(self.processed_files_path, 'r') as f:
-                    self._processed_files = json.load(f)
-            except Exception as e:
-                logger.error(f"Error loading processed files metadata: {e}")
-                self._processed_files = {}
-
-    def save_processed_files_metadata(self):
         try:
-            with open(self.processed_files_path, 'w') as f:
-                json.dump(self._processed_files, f)
+            conn = get_db()
+            rows = conn.execute("SELECT filename, file_hash FROM kb_processed_files").fetchall()
+            self._processed_files = {row['filename']: row['file_hash'] for row in rows}
+            conn.close()
+            logger.info(f"Loaded metadata for {len(self._processed_files)} processed files from database.")
         except Exception as e:
-            logger.error(f"Error saving processed files metadata: {e}")
+            logger.error(f"Error loading processed files metadata from DB: {e}")
+            self._processed_files = {}
+
+    def register_processed_file(self, filename, file_hash):
+        try:
+            conn = get_db()
+            conn.execute("""
+                INSERT INTO kb_processed_files (filename, file_hash, status)
+                VALUES (?, ?, 'Processed')
+                ON CONFLICT(filename) DO UPDATE SET file_hash=excluded.file_hash, processed_at=CURRENT_TIMESTAMP
+            """, (filename, file_hash))
+            conn.commit()
+            conn.close()
+            self._processed_files[filename] = file_hash
+        except Exception as e:
+            logger.error(f"Error registering processed file in DB: {e}")
 
     def _get_file_hash(self, filepath):
         hasher = hashlib.md5()
@@ -188,7 +197,7 @@ class KnowledgeBase:
             return " ".join(filter(None, [self._extract_text(i, depth + 1) for i in obj[:MAX_JSON_ITEMS]]))
         return ""
 
-    def process_file(self, filepath, metadata=None, summarize=False):
+    def process_file(self, filepath, metadata=None, summarize=False, in_memory=True):
         filename = os.path.basename(filepath)
         if filename.startswith('_'): return False, 0
 
@@ -209,21 +218,32 @@ class KnowledgeBase:
                     text = self._extract_text(data)
             elif filename.endswith('.pdf'):
                 try:
-                    reader = PdfReader(filepath)
+                    # Strict=False helps with some slightly corrupted PDFs
+                    reader = PdfReader(filepath, strict=False)
                     if reader.is_encrypted:
                         logger.warning(f"PDF {filename} is encrypted. Attempting to decrypt with empty password.")
                         try:
                             reader.decrypt("")
-                        except:
-                            logger.error(f"Could not decrypt {filename}")
+                        except Exception as dec_err:
+                            logger.error(f"Could not decrypt {filename}: {dec_err}")
                             return False, 0
 
-                    for page in reader.pages:
+                    total_pages = len(reader.pages)
+                    extracted_pages = 0
+                    for i, page in enumerate(reader.pages):
                         try:
                             extracted = page.extract_text()
-                            if extracted: text += extracted + "\n"
+                            if extracted and len(extracted.strip()) > 5:
+                                text += extracted + "\n"
+                                extracted_pages += 1
                         except Exception as pg_err:
-                            logger.warning(f"Error on PDF page in {filename}: {pg_err}")
+                            logger.warning(f"Error on PDF page {i+1} in {filename}: {pg_err}")
+
+                    if extracted_pages == 0:
+                        logger.warning(f"Failed to extract any meaningful text from PDF {filename}")
+                    else:
+                        logger.info(f"Extracted text from {extracted_pages}/{total_pages} pages in {filename}")
+
                 except Exception as pdf_err:
                     logger.error(f"Failed to read PDF {filename}: {pdf_err}")
                     return False, 0
@@ -256,6 +276,7 @@ class KnowledgeBase:
 
         with self._lock:
             # Sync to Supabase Storage first
+            supabase_storage_success = False
             if self.supabase:
                 try:
                     # Check if file exists in storage
@@ -269,16 +290,18 @@ class KnowledgeBase:
                                 file=f,
                                 file_options={"content-type": "application/octet-stream"}
                             )
+                    supabase_storage_success = True
                 except Exception as e:
                     logger.error(f"Supabase Storage upload error for {filename}: {e}")
 
-            self.chunks.extend(new_chunks)
-            if embeddings_list:
-                new_emb_array = np.array(embeddings_list)
-                if self.embeddings is None:
-                    self.embeddings = new_emb_array
-                else:
-                    self.embeddings = np.vstack([self.embeddings, new_emb_array])
+            if in_memory:
+                self.chunks.extend(new_chunks)
+                if embeddings_list:
+                    new_emb_array = np.array(embeddings_list)
+                    if self.embeddings is None:
+                        self.embeddings = new_emb_array
+                    else:
+                        self.embeddings = np.vstack([self.embeddings, new_emb_array])
 
             # Sync to Supabase Vector DB
             supabase_success = True
@@ -301,10 +324,9 @@ class KnowledgeBase:
                     supabase_success = False
 
             if supabase_success or not self.supabase:
-                self._processed_files[filename] = file_hash
-                self.save_processed_files_metadata()
+                self.register_processed_file(filename, file_hash)
 
-        return True, processed_size
+        return True, processed_size, supabase_storage_success
 
     def load_and_process(self):
         if not self.directory.exists():
@@ -327,11 +349,20 @@ class KnowledgeBase:
                 logger.error(f"Supabase Storage sync error: {e}")
 
         # 2. Process all files in directory
+        # Optimization: In production with Supabase, we skip populating in-memory chunks to save RAM
+        skip_in_memory = self.supabase is not None and os.environ.get('FLASK_ENV') == 'production'
+
         for filename in sorted(os.listdir(self.directory)):
             if filename.startswith('_'): continue
             filepath = self.directory / filename
             if filepath.is_file() and filepath.stat().st_size <= MAX_FILE_BYTES:
-                self.process_file(str(filepath))
+                if skip_in_memory:
+                    # Just check if we need to process it for Supabase
+                    file_hash = self._get_file_hash(str(filepath))
+                    if filename not in self._processed_files or self._processed_files[filename] != file_hash:
+                         self.process_file(str(filepath), in_memory=False)
+                else:
+                    self.process_file(str(filepath), in_memory=True)
 
         # 3. Load dynamic KB entries
         if self.dynamic_kb_path.exists():
@@ -414,6 +445,21 @@ class KnowledgeBase:
         except Exception as e:
             logger.error(f"Local search error: {e}")
             return []
+
+    def get_all_chunks(self, page=1, per_page=50):
+        """Fetches all chunks, prioritizing Supabase if available."""
+        start = (page - 1) * per_page
+        if self.supabase:
+            try:
+                response = self.supabase.table('kb_documents').select('content').range(start, start + per_page - 1).execute()
+                if response.data:
+                    return [item['content'] for item in response.data], len(self.chunks) # Fallback count for now or implement a count RPC
+            except Exception as e:
+                logger.error(f"Supabase get_all_chunks error: {e}. Falling back to local.")
+
+        with self._lock:
+            total = len(self.chunks)
+            return self.chunks[start : start + per_page], total
 
     def add_knowledge(self, text, metadata=None):
         text = text.strip()
