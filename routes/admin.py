@@ -273,10 +273,19 @@ def settings():
             ORDER BY s.subject_name, lo.sequence_order
         """)
         thresholds = cur.fetchall()
+        # BKT parameters from system_settings
+        cur.execute("""
+            SELECT setting_key, setting_value, setting_description
+            FROM system_settings
+            WHERE setting_key IN ('bkt_p_learn', 'bkt_p_slip', 'bkt_p_guess')
+            ORDER BY setting_key
+        """)
+        bkt_params = cur.fetchall()
         cur.close()
     finally:
         release_db(conn)
-    return render_template("admin/settings.html", thresholds=thresholds)
+    return render_template("admin/settings.html", thresholds=thresholds,
+                           bkt_params=bkt_params)
 
 
 @admin_bp.route("/admin/settings/threshold/<int:outcome_id>", methods=["POST"])
@@ -325,6 +334,52 @@ def update_threshold(outcome_id):
         release_db(conn)
 
     flash(f"Threshold updated to {new_threshold}%.", "success")
+    return redirect(url_for("admin.settings"))
+
+
+@admin_bp.route("/admin/settings/bkt/<setting_key>", methods=["POST"])
+@role_required("admin")
+def update_bkt_param(setting_key):
+    """Update a BKT parameter in system_settings (p_learn, p_slip, p_guess)."""
+    ALLOWED_KEYS = {"bkt_p_learn", "bkt_p_slip", "bkt_p_guess"}
+    if setting_key not in ALLOWED_KEYS:
+        abort(400)
+    raw = request.form.get("setting_value", "")
+    try:
+        new_val = float(raw)
+        if not (0.0 < new_val < 1.0):
+            raise ValueError
+    except (ValueError, TypeError):
+        flash("BKT parameter must be a decimal between 0 and 1 (exclusive).", "danger")
+        return redirect(url_for("admin.settings"))
+
+    conn = get_db()
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE system_settings SET setting_value = %s
+            WHERE setting_key = %s
+        """, (str(new_val), setting_key))
+        cur.execute("""
+            INSERT INTO audit_logs (actor_id, action, entity_type, entity_id, details)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (
+            session["user_id"], "update_bkt_param",
+            "system_settings", setting_key,
+            json.dumps({"new": new_val})
+        ))
+        conn.commit()
+        cur.close()
+    finally:
+        release_db(conn)
+
+    # Invalidate the in-memory BKT param cache so new value takes effect immediately
+    import services.bkt_engine as _bkt
+    with _bkt._bkt_params_lock:
+        _bkt._bkt_params_cache = {}
+        _bkt._bkt_params_ttl   = 0.0
+
+    flash(f"{setting_key} updated to {new_val}.", "success")
     return redirect(url_for("admin.settings"))
 
 

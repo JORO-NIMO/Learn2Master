@@ -1,23 +1,14 @@
 """
 routes/content.py — Teacher Content Management for Learn2Master.
 
-Provides CRUD routes for:
-  - Learning Outcomes  (Task 2)
-  - Lessons            (Task 3 — to be added)
-  - Questions          (Task 4 — to be added)
-  - Adaptive Notes     (Task 5 — to be added)
-  - Adaptive Videos    (Task 6 — to be added)
-  - Worked Examples    (Task 6 — to be added)
-  - Admin Curriculum   (Task 7 — to be added)
-
 All routes use @role_required("teacher", "admin") except admin curriculum
 routes which use @role_required("admin").
 
-DB pattern: conn = get_db() → try: cur = conn.cursor() ... conn.commit() ...
-            cur.close() → finally: release_db(conn)
-
-All SQL uses %s placeholders (psycopg2 / RealDictCursor).
-All forms must include {{ csrf_token() }} — Flask-WTF validates on every POST.
+Ownership model: content items (outcomes, lessons, questions, notes, videos,
+examples) store a created_by FK referencing the teacher who created them.
+  - Teachers see and can edit/delete ONLY their own items.
+  - Admins see ALL items and can edit/delete anything.
+This is enforced via _owns_item() checks and ownership-filtered queries.
 """
 
 from flask import (
@@ -37,6 +28,39 @@ from routes.guards import role_required
 from database import get_db, release_db
 
 content_bp = Blueprint("content", __name__)
+
+
+# ── Ownership helpers ─────────────────────────────────────────────────────────
+
+def _is_admin():
+    return session.get("role") == "admin"
+
+
+def _owner_filter_sql(alias="lo"):
+    """Return a SQL WHERE fragment and params that scope results to the
+    current teacher, or nothing for admins (who see everything)."""
+    if _is_admin():
+        return "", ()
+    return f"AND {alias}.created_by = %s", (session["user_id"],)
+
+
+def _assert_owns(cur, table, pk_col, pk_val):
+    """Abort 403 if the current teacher doesn't own this row.
+    Admins always pass. Returns the row on success."""
+    if _is_admin():
+        cur.execute(f"SELECT * FROM {table} WHERE {pk_col} = %s", (pk_val,))
+        row = cur.fetchone()
+        if not row:
+            abort(404)
+        return row
+    cur.execute(
+        f"SELECT * FROM {table} WHERE {pk_col} = %s AND created_by = %s",
+        (pk_val, session["user_id"])
+    )
+    row = cur.fetchone()
+    if not row:
+        abort(403)
+    return row
 
 
 # ── Helper: competency dropdown query ────────────────────────────────────────
@@ -59,17 +83,19 @@ def _fetch_competencies(cur):
 @content_bp.route("/teacher/content/outcomes")
 @role_required("teacher", "admin")
 def list_outcomes():
-    """GET — display all learning outcomes with subject/competency context."""
+    """GET — display outcomes. Teachers see only their own; admins see all."""
     conn = get_db()
     try:
         cur = conn.cursor()
-        cur.execute("""
+        extra_sql, extra_params = _owner_filter_sql("lo")
+        cur.execute(f"""
             SELECT lo.outcome_id,
                    lo.outcome_code,
                    lo.outcome_name,
                    lo.outcome_description,
                    lo.mastery_threshold,
                    lo.sequence_order,
+                   lo.created_by,
                    c.competency_id,
                    c.competency_name,
                    c.competency_code,
@@ -77,11 +103,10 @@ def list_outcomes():
             FROM learning_outcomes lo
             JOIN competencies c ON lo.competency_id = c.competency_id
             JOIN subjects     s ON c.subject_id     = s.subject_id
+            WHERE TRUE {extra_sql}
             ORDER BY s.subject_name, lo.sequence_order
-        """)
+        """, extra_params)
         outcomes = cur.fetchall()
-
-        # Competency list for the inline create form
         competencies = _fetch_competencies(cur)
         cur.close()
     finally:
@@ -97,8 +122,7 @@ def list_outcomes():
 @content_bp.route("/teacher/content/outcomes/create", methods=["POST"])
 @role_required("teacher", "admin")
 def create_outcome():
-    """POST — insert a new learning outcome row."""
-    competency_id       = request.form.get("competency_id", "").strip()
+    """POST — insert a new learning outcome row."""    competency_id       = request.form.get("competency_id", "").strip()
     outcome_code        = request.form.get("outcome_code", "").strip()
     outcome_name        = request.form.get("outcome_name", "").strip()
     outcome_description = request.form.get("outcome_description", "").strip()
@@ -126,8 +150,9 @@ def create_outcome():
         cur.execute("""
             INSERT INTO learning_outcomes
                 (competency_id, outcome_code, outcome_name,
-                 outcome_description, mastery_threshold, sequence_order)
-            VALUES (%s, %s, %s, %s, %s, %s)
+                 outcome_description, mastery_threshold, sequence_order,
+                 created_by)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
         """, (
             competency_id,
             outcome_code,
@@ -135,6 +160,7 @@ def create_outcome():
             outcome_description,
             mastery_threshold,
             sequence_order,
+            session["user_id"],
         ))
         conn.commit()
         cur.close()
@@ -161,6 +187,7 @@ def edit_outcome(outcome_id):
         conn = get_db()
         try:
             cur = conn.cursor()
+            _assert_owns(cur, "learning_outcomes", "outcome_id", outcome_id)
             cur.execute("""
                 SELECT lo.outcome_id,
                        lo.outcome_code,
@@ -258,6 +285,7 @@ def delete_outcome(outcome_id):
     conn = get_db()
     try:
         cur = conn.cursor()
+        _assert_owns(cur, "learning_outcomes", "outcome_id", outcome_id)
 
         # Safe-delete guard: check for referencing mastery records
         cur.execute(
@@ -287,6 +315,92 @@ def delete_outcome(outcome_id):
 
     flash("Learning outcome deleted successfully.", "success")
     return redirect(url_for("content.list_outcomes"))
+
+
+# ── Search: outcomes + questions ──────────────────────────────────────────────
+
+@content_bp.route("/teacher/content/search")
+@role_required("teacher", "admin")
+def search_content():
+    """GET /teacher/content/search?q=<term>&type=outcomes|questions|notes
+
+    Returns filtered rows as partial HTML (htmx-friendly) or full page.
+    Falls back to listing all items when q is blank.
+    """
+    q         = request.args.get("q", "").strip()
+    item_type = request.args.get("type", "outcomes")
+    term      = f"%{q}%"
+
+    conn = get_db()
+    results = []
+    try:
+        cur = conn.cursor()
+        extra_sql, extra_params = _owner_filter_sql("lo")
+
+        if item_type == "outcomes":
+            cur.execute(f"""
+                SELECT lo.outcome_id, lo.outcome_code, lo.outcome_name,
+                       lo.mastery_threshold, lo.sequence_order,
+                       c.competency_name, s.subject_name
+                FROM learning_outcomes lo
+                JOIN competencies c ON lo.competency_id = c.competency_id
+                JOIN subjects     s ON c.subject_id     = s.subject_id
+                WHERE (lo.outcome_code ILIKE %s OR lo.outcome_name ILIKE %s
+                       OR lo.outcome_description ILIKE %s)
+                      {extra_sql}
+                ORDER BY s.subject_name, lo.sequence_order
+                LIMIT 100
+            """, (term, term, term, *extra_params))
+            results = cur.fetchall()
+
+        elif item_type == "questions":
+            q_extra_sql, q_extra_params = _owner_filter_sql("q") if not _is_admin() else ("", ())
+            # For questions, created_by is on the questions table itself
+            if not _is_admin():
+                q_extra_sql   = "AND q.created_by = %s"
+                q_extra_params = (session["user_id"],)
+            cur.execute(f"""
+                SELECT q.question_id, q.question_text, q.concept_tag,
+                       q.difficulty_level, q.marks,
+                       a.assessment_title, a.assessment_type,
+                       l.lesson_title
+                FROM questions q
+                JOIN assessments a ON q.assessment_id = a.assessment_id
+                JOIN lessons     l ON a.lesson_id     = l.lesson_id
+                WHERE (q.question_text ILIKE %s OR q.concept_tag ILIKE %s)
+                      {q_extra_sql}
+                ORDER BY l.lesson_title, q.concept_tag
+                LIMIT 100
+            """, (term, term, *q_extra_params))
+            results = cur.fetchall()
+
+        elif item_type == "notes":
+            n_extra_sql, n_extra_params = ("", ()) if _is_admin() else (
+                "AND an.created_by = %s", (session["user_id"],)
+            )
+            cur.execute(f"""
+                SELECT an.note_id, an.note_title, an.concept_tag,
+                       an.priority, lo.outcome_code, lo.outcome_name
+                FROM adaptive_notes an
+                JOIN learning_outcomes lo ON an.outcome_id = lo.outcome_id
+                WHERE (an.note_title ILIKE %s OR an.concept_tag ILIKE %s
+                       OR an.note_body ILIKE %s)
+                      {n_extra_sql}
+                ORDER BY lo.outcome_code, an.priority
+                LIMIT 100
+            """, (term, term, term, *n_extra_params))
+            results = cur.fetchall()
+
+        cur.close()
+    finally:
+        release_db(conn)
+
+    return render_template(
+        "content/search_results.html",
+        results=results,
+        q=q,
+        item_type=item_type,
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -388,8 +502,8 @@ def create_lesson():
         cur.execute("""
             INSERT INTO lessons
                 (course_id, outcome_id, lesson_title, lesson_content,
-                 video_url, estimated_minutes, sequence_order)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                 video_url, estimated_minutes, sequence_order, created_by)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             course_id,
             outcome_id,
@@ -398,6 +512,7 @@ def create_lesson():
             video_url,
             estimated_minutes,
             sequence_order,
+            session["user_id"],
         ))
         conn.commit()
         cur.close()

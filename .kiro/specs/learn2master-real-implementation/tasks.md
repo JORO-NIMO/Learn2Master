@@ -137,7 +137,7 @@ Implement five missing production capabilities for the Learn2Master Flask/Postgr
   - Apply `@role_required("teacher", "admin")` to both routes
   - **Requirement refs:** R5.1–R5.9
 
-- [ ] 18. Create templates/teacher/learner_detail.html
+- [x] 18. Create templates/teacher/learner_detail.html
   - Extend `layouts/base.html`
   - Section 1 — Learner header: `full_name`, `username`, `class_level`, `learning_style`, `learning_pace`
   - Section 2 — Mastery Summary table: columns Subject, Outcome Code, Outcome Name, Pretest, Practice, Posttest, Mastery Score, Status; rows from `mastery_rows`; colour-code Status (Mastered = green, In Progress = amber, Not Started = grey)
@@ -153,7 +153,7 @@ Implement five missing production capabilities for the Learn2Master Flask/Postgr
   - Property 4 (Question Options Invariant): generate N options (2–6) and correct index; POST create; assert `COUNT(*) FROM question_options WHERE question_id = %s` == N; assert exactly one row has `is_correct = TRUE` (validates R1.7, R1.8)
   - Property 5 (Question Delete Cascade): insert question with K options; POST delete; assert question row gone and all K option rows gone (validates R1.9)
 
-- [ ] 20. Write property-based tests — User Management and Settings (Properties 6–9)
+- [x] 20. Write property-based tests — User Management and Settings (Properties 6–9)
   - Property 6 (Password Not Plaintext): generate random password; POST to `/admin/users/create`; SELECT `password_hash`; assert `password_hash != password`; assert `check_password_hash(stored, password) == True` (validates R2.1)
   - Property 7 (Duplicate User Leaves Table Unchanged): count `users` rows; POST with duplicate username or email; count again; assert counts equal (validates R2.2)
   - Property 8 (Student Registration Role Immutability): POST to `/register` with arbitrary role values in body; SELECT resulting row; assert `role_name == 'student'` (validates R2.6)

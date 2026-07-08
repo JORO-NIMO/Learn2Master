@@ -49,11 +49,15 @@ def login():
 
     if user and check_password_hash(user["password_hash"], password):
         session.clear()
-        session["user_id"]  = user["user_id"]
-        session["username"] = user["username"]
-        session["full_name"] = user["full_name"]
-        session["role"]     = user["role_name"]
-        session.permanent   = False
+        session["user_id"]       = user["user_id"]
+        session["username"]      = user["username"]
+        session["full_name"]     = user["full_name"]
+        session["role"]          = user["role_name"]
+        # session_version ties this session to the DB row's current role_id.
+        # If an admin changes the user's role, role_id changes and the next
+        # request will detect the mismatch and force a re-login.
+        session["session_version"] = user["role_id"]
+        session.permanent        = False
 
         role = user["role_name"]
         if role == "student":

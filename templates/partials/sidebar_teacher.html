@@ -11,7 +11,31 @@
         <a href="{{ url_for('teacher.teacher_dashboard') }}" class="nav-link">🏠 <span>Dashboard</span></a>
         <a href="{{ url_for('teacher.learners') }}" class="nav-link">👨‍🎓 <span>Learners</span></a>
         <a href="{{ url_for('teacher.mastery_monitor') }}" class="nav-link">🎯 <span>Mastery Monitor</span></a>
-        <a href="{{ url_for('teacher.ai_insights') }}" class="nav-link">🤖 <span>AI Insights</span></a>
+
+        {# AI Insights — show badge when there are pending recommendations #}
+        <a href="{{ url_for('teacher.ai_insights') }}" class="nav-link"
+           style="position:relative; display:flex; align-items:center; gap:.5rem;">
+            🤖 <span>AI Insights</span>
+            {% if pending_recs_count and pending_recs_count > 0 %}
+            <span style="
+                margin-left:auto;
+                background:#e3342f;
+                color:#fff;
+                font-size:.7rem;
+                font-weight:700;
+                padding:.1rem .45rem;
+                border-radius:999px;
+                line-height:1.4;
+                min-width:1.4rem;
+                text-align:center;"
+                title="{{ pending_recs_count }} pending AI recommendation(s) awaiting your review">
+                {{ pending_recs_count if pending_recs_count <= 99 else '99+' }}
+            </span>
+            {% endif %}
+        </a>
+
+        <a href="{{ url_for('content.list_outcomes') }}" class="nav-link">📝 <span>Content</span></a>
+        <a href="{{ url_for('content.search_content') }}" class="nav-link">🔍 <span>Search Content</span></a>
         <a href="{{ url_for('teacher.practical_evidence') }}" class="nav-link">🧪 <span>Practical Evidence</span></a>
         <a href="{{ url_for('analytics.analytics_dashboard') }}" class="nav-link">📊 <span>Class Analytics</span></a>
         <a href="{{ url_for('teacher.reports') }}" class="nav-link">📋 <span>Reports</span></a>

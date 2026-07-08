@@ -24,9 +24,15 @@ from routes.learning import (
     update_bkt_record,
     posttest_unlock_status,
     get_required_concepts,
+    weak_concepts_resolved,
 )
-from services.mastery_engine import calculate_percentage, mastery_level
-from services.bkt_engine import update_bkt_record  # noqa: F811 — re-export alias
+from services.mastery_engine import (
+    calculate_percentage,
+    mastery_level,
+    evidence_based_mastery,
+)
+from services.bkt_engine import update_bkt_record  # noqa: F811
+from services.evidence_engine import has_reflection
 
 sync_bp = Blueprint("sync", __name__)
 
@@ -174,12 +180,23 @@ def _process_sync_item(conn, learner_id, item):
 
     elif assessment_type == "posttest":
         post = score
-        # Simple mastery score: weighted average of practice + posttest
-        m_score = round((practice * 0.35) + (post * 0.65))
-        m_score = min(100, m_score)
+        # Use the same evidence_based_mastery() that the live submission path uses,
+        # so synced and live submissions produce identical mastery state.
+        reflection_done     = has_reflection(conn, learner_id, outcome_id)
+        weak_resolved       = weak_concepts_resolved(conn, learner_id, outcome_id)
+        eb                  = evidence_based_mastery(
+            pretest_done          = bool(pre),
+            activity_done         = reflection_done,
+            practice_score        = practice,
+            weak_concepts_resolved= weak_resolved,
+            posttest_score        = post,
+            teacher_verified      = False,
+            threshold             = mastery_threshold,
+        )
+        m_score = eb["mastery_score"]
+        status  = eb["mastery_status"]
+        level   = eb["mastery_level"]
         improve = round(post - pre) if pre else 0
-        level   = mastery_level(post)
-        status  = "Mastered" if post >= mastery_threshold else "Remediation Required"
 
     # Upsert mastery record
     cur.execute("""

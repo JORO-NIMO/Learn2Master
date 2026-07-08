@@ -1,0 +1,166 @@
+{% extends "layouts/base.html" %}
+{% block title %}Content Search{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/learning.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<section class="hero-panel">
+  <div>
+    <p class="eyebrow">Teacher Content Management</p>
+    <h1>Content Search</h1>
+    <p>Search across outcomes, questions, and adaptive notes.</p>
+  </div>
+  <div class="hero-badge">
+    <span>Content</span>
+    <strong>Search</strong>
+  </div>
+</section>
+
+{# ── Search Form ─────────────────────────────────────────────────────────── #}
+<section class="learn-card">
+  <form method="GET" action="{{ url_for('content.search_content') }}"
+        style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end;">
+
+    <div class="form-group" style="flex:2; min-width:12rem;">
+      <label for="q">Search term</label>
+      <input type="text" id="q" name="q" value="{{ q }}"
+             placeholder="keyword, concept tag, outcome code…"
+             autofocus>
+    </div>
+
+    <div class="form-group" style="flex:1; min-width:9rem;">
+      <label for="type">Search in</label>
+      <select id="type" name="type">
+        <option value="outcomes"  {% if item_type == 'outcomes'  %}selected{% endif %}>
+          Learning Outcomes
+        </option>
+        <option value="questions" {% if item_type == 'questions' %}selected{% endif %}>
+          Questions
+        </option>
+        <option value="notes"     {% if item_type == 'notes'     %}selected{% endif %}>
+          Adaptive Notes
+        </option>
+      </select>
+    </div>
+
+    <div class="form-group form-group--action">
+      <button type="submit" class="btn-primary">Search</button>
+    </div>
+  </form>
+</section>
+
+{# ── Results ─────────────────────────────────────────────────────────────── #}
+<section class="learn-card">
+
+  {% if q %}
+    <h2>Results for &ldquo;{{ q }}&rdquo; in {{ item_type | title }}
+        <small style="font-weight:400;">({{ results | length }} found)</small>
+    </h2>
+  {% else %}
+    <h2>All {{ item_type | title }}
+        <small style="font-weight:400;">({{ results | length }} items)</small>
+    </h2>
+  {% endif %}
+
+  {% if results %}
+
+    {# ── Outcomes results ─────────────────────────────────────────────────── #}
+    {% if item_type == 'outcomes' %}
+    <div style="overflow-x:auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Code</th><th>Outcome Name</th><th>Competency</th>
+            <th>Subject</th><th>Threshold</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in results %}
+          <tr>
+            <td><strong>{{ o.outcome_code }}</strong></td>
+            <td>{{ o.outcome_name }}</td>
+            <td>{{ o.competency_name }}</td>
+            <td>{{ o.subject_name }}</td>
+            <td>{{ o.mastery_threshold }}%</td>
+            <td class="action-cell">
+              <a href="{{ url_for('content.edit_outcome', outcome_id=o.outcome_id) }}"
+                 class="btn-sm">Edit</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ── Questions results ────────────────────────────────────────────────── #}
+    {% elif item_type == 'questions' %}
+    <div style="overflow-x:auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Question</th><th>Concept Tag</th><th>Assessment</th>
+            <th>Lesson</th><th>Difficulty</th><th>Marks</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for q_row in results %}
+          <tr>
+            <td style="max-width:22rem;">{{ q_row.question_text }}</td>
+            <td><code>{{ q_row.concept_tag }}</code></td>
+            <td>{{ q_row.assessment_title }}<br>
+                <small>({{ q_row.assessment_type }})</small></td>
+            <td>{{ q_row.lesson_title }}</td>
+            <td>{{ q_row.difficulty_level }}</td>
+            <td>{{ q_row.marks }}</td>
+            <td class="action-cell">
+              <a href="{{ url_for('content.edit_question', question_id=q_row.question_id) }}"
+                 class="btn-sm">Edit</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ── Notes results ────────────────────────────────────────────────────── #}
+    {% elif item_type == 'notes' %}
+    <div style="overflow-x:auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Outcome</th><th>Concept Tag</th>
+            <th>Note Title</th><th>Priority</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for n in results %}
+          <tr>
+            <td>{{ n.outcome_code }} — {{ n.outcome_name }}</td>
+            <td><code>{{ n.concept_tag }}</code></td>
+            <td>{{ n.note_title }}</td>
+            <td>{{ n.priority }}</td>
+            <td class="action-cell">
+              <a href="{{ url_for('content.edit_note', note_id=n.note_id) }}"
+                 class="btn-sm">Edit</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+  {% elif q %}
+    <p class="empty-state">
+      No {{ item_type }} match &ldquo;{{ q }}&rdquo;.
+      Try a broader term or a different category.
+    </p>
+  {% else %}
+    <p class="empty-state">Enter a search term above to filter content.</p>
+  {% endif %}
+
+</section>
+
+{% endblock %}
