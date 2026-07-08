@@ -1,0 +1,259 @@
+{% extends "layouts/base.html" %}
+{% block title %}Admin Curriculum Management{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/learning.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<section class="hero-panel">
+  <div>
+    <p class="eyebrow">Admin — Curriculum</p>
+    <h1>Curriculum Management</h1>
+    <p>Manage subjects, competencies, and courses from one page.</p>
+  </div>
+  <div class="hero-badge">
+    <span>Admin</span>
+    <strong>Curriculum</strong>
+  </div>
+</section>
+
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# SECTION A — Subjects                                                        #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+
+<section class="learn-card">
+  <h2>Subjects</h2>
+
+  {# ── Create form ───────────────────────────────────────────────────────── #}
+  <form method="POST" action="{{ url_for('content.admin_create_subject') }}"
+        class="inline-create-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row">
+      <div class="form-group" style="flex:1;">
+        <label for="subject_name">New Subject Name</label>
+        <input type="text" id="subject_name" name="subject_name"
+               placeholder="e.g. ICT" maxlength="255" required>
+      </div>
+      <div class="form-group form-group--action">
+        <label>&nbsp;</label>
+        <button type="submit" class="btn-primary">Add Subject</button>
+      </div>
+    </div>
+  </form>
+
+  {# ── Subjects table ────────────────────────────────────────────────────── #}
+  {% if subjects %}
+  <div style="overflow-x:auto; margin-top:1rem;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Subject Name</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in subjects %}
+        <tr>
+          <td>{{ s.subject_id }}</td>
+          <td><strong>{{ s.subject_name }}</strong></td>
+          <td class="action-cell">
+            <a href="{{ url_for('content.admin_edit_subject', subject_id=s.subject_id) }}"
+               class="btn-sm">Edit</a>
+            <form method="POST"
+                  action="{{ url_for('content.admin_delete_subject', subject_id=s.subject_id) }}"
+                  style="display:inline"
+                  onsubmit="return confirm('Delete subject \'{{ s.subject_name }}\'? This will also remove linked competencies and courses.');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn-sm btn-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">No subjects yet. Use the form above to add the first one.</p>
+  {% endif %}
+</section>
+
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# SECTION B — Competencies                                                    #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+
+<section class="learn-card">
+  <h2>Competencies</h2>
+
+  {# ── Create form ───────────────────────────────────────────────────────── #}
+  <form method="POST" action="{{ url_for('content.admin_create_competency') }}"
+        class="inline-create-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row">
+      <div class="form-group">
+        <label for="comp_subject_id">Subject</label>
+        <select id="comp_subject_id" name="subject_id" required>
+          <option value="">— Select subject —</option>
+          {% for s in subjects %}
+          <option value="{{ s.subject_id }}">{{ s.subject_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="competency_code">Code</label>
+        <input type="text" id="competency_code" name="competency_code"
+               placeholder="e.g. ICT1" maxlength="50" required>
+      </div>
+      <div class="form-group" style="flex:2;">
+        <label for="competency_name">Competency Name</label>
+        <input type="text" id="competency_name" name="competency_name"
+               placeholder="Short descriptive name" maxlength="255" required>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="flex:1;">
+        <label for="competency_description">Description <small>(optional)</small></label>
+        <textarea id="competency_description" name="competency_description"
+                  rows="2" placeholder="Optional description…"></textarea>
+      </div>
+      <div class="form-group form-group--action" style="align-self:flex-end;">
+        <button type="submit" class="btn-primary">Add Competency</button>
+      </div>
+    </div>
+  </form>
+
+  {# ── Competencies table ────────────────────────────────────────────────── #}
+  {% if competencies %}
+  <div style="overflow-x:auto; margin-top:1rem;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Competency Name</th>
+          <th>Subject</th>
+          <th>Description</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in competencies %}
+        <tr>
+          <td><strong>{{ c.competency_code }}</strong></td>
+          <td>{{ c.competency_name }}</td>
+          <td>{{ c.subject_name }}</td>
+          <td>{{ c.competency_description or '—' }}</td>
+          <td class="action-cell">
+            <a href="{{ url_for('content.admin_edit_competency', competency_id=c.competency_id) }}"
+               class="btn-sm">Edit</a>
+            <form method="POST"
+                  action="{{ url_for('content.admin_delete_competency', competency_id=c.competency_id) }}"
+                  style="display:inline"
+                  onsubmit="return confirm('Delete competency \'{{ c.competency_code }}\'?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn-sm btn-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">No competencies yet. Add a subject first, then create competencies above.</p>
+  {% endif %}
+</section>
+
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# SECTION C — Courses                                                         #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+
+<section class="learn-card">
+  <h2>Courses</h2>
+
+  {# ── Create form ───────────────────────────────────────────────────────── #}
+  <form method="POST" action="{{ url_for('content.admin_create_course') }}"
+        class="inline-create-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row">
+      <div class="form-group">
+        <label for="course_subject_id">Subject</label>
+        <select id="course_subject_id" name="subject_id" required>
+          <option value="">— Select subject —</option>
+          {% for s in subjects %}
+          <option value="{{ s.subject_id }}">{{ s.subject_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="flex:2;">
+        <label for="course_title">Course Title</label>
+        <input type="text" id="course_title" name="course_title"
+               placeholder="e.g. Introduction to Programming" maxlength="255" required>
+      </div>
+      <div class="form-group">
+        <label for="difficulty_level">Difficulty</label>
+        <select id="difficulty_level" name="difficulty_level">
+          <option value="">— Optional —</option>
+          <option value="Beginner">Beginner</option>
+          <option value="Intermediate">Intermediate</option>
+          <option value="Advanced">Advanced</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="flex:1;">
+        <label for="course_description">Description <small>(optional)</small></label>
+        <textarea id="course_description" name="course_description"
+                  rows="2" placeholder="Optional description…"></textarea>
+      </div>
+      <div class="form-group form-group--action" style="align-self:flex-end;">
+        <button type="submit" class="btn-primary">Add Course</button>
+      </div>
+    </div>
+  </form>
+
+  {# ── Courses table ─────────────────────────────────────────────────────── #}
+  {% if courses %}
+  <div style="overflow-x:auto; margin-top:1rem;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Course Title</th>
+          <th>Subject</th>
+          <th>Difficulty</th>
+          <th>Description</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for co in courses %}
+        <tr>
+          <td><strong>{{ co.course_title }}</strong></td>
+          <td>{{ co.subject_name }}</td>
+          <td>{{ co.difficulty_level or '—' }}</td>
+          <td>{{ co.course_description or '—' }}</td>
+          <td class="action-cell">
+            <a href="{{ url_for('content.admin_edit_course', course_id=co.course_id) }}"
+               class="btn-sm">Edit</a>
+            <form method="POST"
+                  action="{{ url_for('content.admin_delete_course', course_id=co.course_id) }}"
+                  style="display:inline"
+                  onsubmit="return confirm('Delete course \'{{ co.course_title }}\'?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn-sm btn-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">No courses yet. Add a subject first, then create courses above.</p>
+  {% endif %}
+</section>
+
+{% endblock %}

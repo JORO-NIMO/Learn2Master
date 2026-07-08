@@ -6,13 +6,13 @@ Implement five missing production capabilities for the Learn2Master Flask/Postgr
 
 ## Tasks
 
-- [ ] 1. Register new blueprints in app.py
+- [x] 1. Register new blueprints in app.py
   - Import `content_bp` from `routes.content` and `sync_bp` from `routes.sync`
   - Call `app.register_blueprint(content_bp)` and `app.register_blueprint(sync_bp)` after existing registrations
   - Call `csrf.exempt(sync_bp)` immediately after registering `sync_bp` — the `/sync` JSON endpoint validates CSRF from the request body, not via Flask-WTF form middleware
   - **Requirement refs:** R1.17, R4.8
 
-- [ ] 2. Create routes/content.py — Learning Outcomes CRUD
+- [x] 2. Create routes/content.py — Learning Outcomes CRUD
   - Create `routes/content.py` with `content_bp = Blueprint("content", __name__)`
   - `GET /teacher/content/outcomes` — query `learning_outcomes` joined to `competencies` and `subjects`, ordered by `subject_name`, `sequence_order`; render `content/outcomes.html`
   - `POST /teacher/content/outcomes/create` — validate required fields, INSERT into `learning_outcomes`, commit, flash success, redirect
@@ -22,7 +22,7 @@ Implement five missing production capabilities for the Learn2Master Flask/Postgr
   - Apply `@role_required("teacher", "admin")` to all routes; use `get_db()` / `release_db()` via `try/finally`
   - **Requirement refs:** R1.1–R1.3, R1.17–R1.18
 
-- [ ] 3. Add Lessons CRUD to routes/content.py
+- [x] 3. Add Lessons CRUD to routes/content.py
   - `GET /teacher/content/lessons` — query `lessons` joined to `courses` and `learning_outcomes`; render `content/lessons.html`
   - `POST /teacher/content/lessons/create` — INSERT into `lessons` (`course_id`, `outcome_id`, `lesson_title`, `lesson_content`, `video_url`, `estimated_minutes`, `sequence_order`), commit, flash, redirect
   - `GET /teacher/content/lessons/<lesson_id>/edit` — fetch row, render edit form
@@ -30,7 +30,7 @@ Implement five missing production capabilities for the Learn2Master Flask/Postgr
   - `POST /teacher/content/lessons/<lesson_id>/delete` — check `SELECT assessment_id FROM assessments WHERE lesson_id = %s LIMIT 1`; reject with flash if found; otherwise DELETE and commit
   - **Requirement refs:** R1.4–R1.6, R1.17–R1.18
 
-- [ ] 4. Add Questions CRUD (with options) to routes/content.py
+- [x] 4. Add Questions CRUD (with options) to routes/content.py
   - `GET /teacher/content/questions` — query `questions` joined to `assessments` and `lessons`; render `content/questions.html`
   - `POST /teacher/content/questions/create` — parse `option_text` list via `request.form.getlist("option_text")` and `correct_option_index` (radio); validate 2–6 options and index in range; INSERT into `questions` then INSERT one row per option into `question_options` with `is_correct = TRUE` only on designated index; all inserts in single transaction; commit; flash; redirect
   - `GET /teacher/content/questions/<question_id>/edit` — fetch question + all options, render edit form
@@ -38,7 +38,7 @@ Implement five missing production capabilities for the Learn2Master Flask/Postgr
   - `POST /teacher/content/questions/<question_id>/delete` — DELETE `question_options` then `questions` in single transaction; commit; flash; redirect
   - **Requirement refs:** R1.7–R1.9, R1.17–R1.18
 
-- [ ] 5. Add Adaptive Notes CRUD to routes/content.py
+- [x] 5. Add Adaptive Notes CRUD to routes/content.py
   - `GET /teacher/content/notes` — query `adaptive_notes` joined to `learning_outcomes`; render `content/notes.html`
   - `POST /teacher/content/notes/create` — INSERT into `adaptive_notes` (`outcome_id`, `concept_tag`, `note_title`, `note_body`, `priority`); commit; flash; redirect
   - `GET /teacher/content/notes/<note_id>/edit` — fetch row, render edit form
@@ -46,7 +46,7 @@ Implement five missing production capabilities for the Learn2Master Flask/Postgr
   - `POST /teacher/content/notes/<note_id>/delete` — DELETE row; commit; flash; redirect
   - **Requirement refs:** R1.10–R1.12, R1.17–R1.18
 
-- [ ] 6. Add Adaptive Videos and Worked Examples CRUD to routes/content.py
+- [x] 6. Add Adaptive Videos and Worked Examples CRUD to routes/content.py
   - `GET /teacher/content/videos` — query `adaptive_videos` joined to `learning_outcomes`; render `content/videos.html`
   - `POST /teacher/content/videos/create` — INSERT into `adaptive_videos` (`outcome_id`, `concept_tag`, `video_title`, `video_url`, `video_description`); commit; flash; redirect
   - `POST /teacher/content/videos/<video_id>/delete` — DELETE row; commit; flash; redirect
@@ -55,7 +55,7 @@ Implement five missing production capabilities for the Learn2Master Flask/Postgr
   - `POST /teacher/content/examples/<example_id>/delete` — DELETE row; commit; flash; redirect
   - **Requirement refs:** R1.13–R1.16, R1.17–R1.18
 
-- [ ] 7. Add Admin Curriculum Routes to routes/content.py
+- [x] 7. Add Admin Curriculum Routes to routes/content.py
   - `GET/POST /admin/content/subjects/create` — INSERT into `subjects`; `@role_required("admin")`
   - `GET/POST /admin/content/subjects/<subject_id>/edit` — UPDATE `subjects`; `@role_required("admin")`
   - `POST /admin/content/subjects/<subject_id>/delete` — DELETE `subjects`; `@role_required("admin")`
@@ -63,7 +63,7 @@ Implement five missing production capabilities for the Learn2Master Flask/Postgr
   - `/admin/content/courses/...` routes — INSERT/UPDATE/DELETE against `courses`; `@role_required("admin")`
   - **Requirement refs:** R1.19–R1.20
 
-- [ ] 8. Create content management templates
+- [x] 8. Create content management templates
   - `templates/content/outcomes.html` — list table (outcome_code, outcome_name, competency, mastery_threshold, sequence_order) + inline create form + Edit/Delete buttons per row; extend `layouts/base.html`; include `<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">` on every form
   - `templates/content/lessons.html` — list table (lesson_title, course, outcome, estimated_minutes) + inline create form + Edit/Delete buttons
   - `templates/content/questions.html` — list table (question_text, concept_tag, difficulty_level, marks) + create form with dynamic option rows (JS: add/remove option inputs, radio for correct answer) + Delete button
@@ -72,30 +72,30 @@ Implement five missing production capabilities for the Learn2Master Flask/Postgr
   - `templates/content/examples.html` — list table (example_title, concept_tag) + inline create form with textarea for `step_by_step_solution` + Delete button
   - **Requirement refs:** R1.1–R1.20
 
-- [ ] 9. Extend routes/admin.py — Admin User Management
+- [x] 9. Extend routes/admin.py — Admin User Management
   - Add `GET /admin/users/create` — query `schools` ordered by `school_name`; render `admin/create_user.html` with schools list; `@role_required("admin")`
   - Add `POST /admin/users/create` — validate `role in {"teacher", "admin"}` (`abort(400)` otherwise); `SELECT role_id FROM roles WHERE role_name = %s`; `generate_password_hash(password, method="pbkdf2:sha256")`; INSERT into `users`; catch `psycopg2.errors.UniqueViolation` → `conn.rollback()`, flash danger, redirect back to form; on success commit, flash, redirect to `admin.users`
   - Update `GET /admin/users` query to `ORDER BY role_name, full_name` and ensure `created_at` is selected
   - **Requirement refs:** R2.1–R2.7
 
-- [ ] 10. Create admin/create_user.html template and update admin/users.html
+- [x] 10. Create admin/create_user.html template and update admin/users.html
   - Create `templates/admin/create_user.html` — form with fields: `full_name`, `username`, `email`, `password`, `role` (select: teacher/admin), `school_id` (select from `schools`), hidden `csrf_token`, submit button; extend `layouts/base.html`
   - Add "Create User" link to `templates/admin/users.html` pointing to `url_for('admin.create_user')`
   - Add `created_at` column to the users table in `templates/admin/users.html`
   - **Requirement refs:** R2.1–R2.7
 
-- [ ] 11. Extend routes/admin.py — Admin Settings Management
+- [x] 11. Extend routes/admin.py — Admin Settings Management
   - Add `POST /admin/settings/threshold/<int:outcome_id>` — parse `mastery_threshold` from form; cast to `int`; validate `1 <= value <= 100` (flash danger + redirect on failure); `SELECT mastery_threshold FROM learning_outcomes WHERE outcome_id = %s` (`abort(404)` if not found); UPDATE `learning_outcomes SET mastery_threshold = %s`; INSERT into `audit_logs` with `actor_id = session["user_id"]`, `action = "update_mastery_threshold"`, `entity_type = "learning_outcomes"`, `entity_id = str(outcome_id)`, `details = json.dumps({"old": old_threshold, "new": new_threshold})`; commit; flash success; redirect to `admin.settings`
   - Apply `@role_required("admin")`
   - Update `GET /admin/settings` query to join `subjects` via `competencies`, select `subject_name` and `sequence_order`, order by `subject_name`, `sequence_order`; pass result as `thresholds` to template
   - **Requirement refs:** R3.1–R3.6
 
-- [ ] 12. Update templates/admin/settings.html for inline threshold editing
+- [x] 12. Update templates/admin/settings.html for inline threshold editing
   - Replace read-only threshold pills with inline edit form per outcome row: `<form method="POST" action="{{ url_for('admin.update_threshold', outcome_id=t.outcome_id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="number" name="mastery_threshold" value="{{ t.mastery_threshold }}" min="1" max="100"><button type="submit">Save</button></form>`
   - Display `subject_name`, `outcome_code`, `outcome_name`, and current `mastery_threshold` per row
   - **Requirement refs:** R3.6
 
-- [ ] 13. Create routes/sync.py — Offline Assessment Sync Endpoint
+- [x] 13. Create routes/sync.py — Offline Assessment Sync Endpoint
   - Create `routes/sync.py` with `sync_bp = Blueprint("sync", __name__)`
   - `POST /sync` — auth guard: `if session.get("role") != "student": return jsonify({"error": "Forbidden"}), 403`
   - Parse JSON body: `body = request.get_json(force=True, silent=True) or {}`
@@ -105,7 +105,7 @@ Implement five missing production capabilities for the Learn2Master Flask/Postgr
   - Return `jsonify({"synced": synced}), 200`
   - **Requirement refs:** R4.3–R4.8
 
-- [ ] 14. Implement _process_sync_item in routes/sync.py
+- [x] 14. Implement _process_sync_item in routes/sync.py
   - Read `assessment_id` from `item["_assessment_id"]`
   - Fetch assessment + lesson + outcome row (same SQL join as `learning.submit_assessment`)
   - Build answer map from `item` keys matching `question_<id>` pattern
@@ -117,13 +117,13 @@ Implement five missing production capabilities for the Learn2Master Flask/Postgr
   - All operations use the passed `conn` — caller is responsible for commit or rollback
   - **Requirement refs:** R4.4–R4.5
 
-- [ ] 15. Update service-worker.js — Offline Assessment Interception
+- [x] 15. Update service-worker.js — Offline Assessment Interception
   - In the `fetch` event handler, add assessment interception branch **before** the existing static-asset cache branch: `const isAssessmentSubmit = event.request.method === 'POST' && /\/assessment\/\d+\/submit/.test(url.pathname)`
   - When `isAssessmentSubmit` is true: attempt `fetch(event.request.clone())`; on network failure clone the form body into a payload object, call `enqueueOffline(payload)`, return `new Response(JSON.stringify({ queued: true }), { status: 202, headers: { 'Content-Type': 'application/json' } })`
   - Implement `enqueueOffline(payload)` — opens `indexedDB.open('learn2master-offline', 1)` with `onupgradeneeded` creating `'offlineQueue'` store (autoIncrement keys); appends record `{ payload, status: 'pending', queued_at: timestamp }`
   - **Requirement refs:** R4.1, R4.9
 
-- [ ] 16. Update static/js/offline.js — Client-Side Sync on Reconnect
+- [x] 16. Update static/js/offline.js — Client-Side Sync on Reconnect
   - Append `window.addEventListener('online', syncOfflineQueue)` after existing service worker registration code
   - On page load, if `navigator.onLine`, call `syncOfflineQueue()` to replay items from previous offline sessions
   - Implement `syncOfflineQueue()` async function: open IndexedDB `'learn2master-offline'` / `'offlineQueue'`; retrieve all records; filter `status === 'pending'`; sort by key ascending (oldest first); for each pending record POST to `/sync` with `Content-Type: application/json` and body `{ ...value.payload, event_type: 'assessment_submission' }`; on HTTP 200 update IndexedDB record `status` to `'synced'`; on network error `break` and retry on next `online` event
@@ -131,7 +131,7 @@ Implement five missing production capabilities for the Learn2Master Flask/Postgr
   - Implement `getAllRecords(store)` Promise wrapper returning `[{ key, value }]` from `IDBObjectStore.openCursor`
   - **Requirement refs:** R4.2, R4.7
 
-- [ ] 17. Extend routes/teacher.py — Learner Detail and Interventions
+- [x] 17. Extend routes/teacher.py — Learner Detail and Interventions
   - Add `GET /teacher/learners/<int:learner_id>` (`learner_detail`): validate learner exists with `role_name = 'student'` (`abort(404)` otherwise); query mastery summary (`learning_outcomes` LEFT JOIN `mastery_records`, joined to `competencies` and `subjects`, ordered by `subject_name`, `sequence_order`); query intervention history (`teacher_interventions` JOIN `learning_outcomes` WHERE `learner_id = %s` ORDER BY `created_at DESC`); query outcomes dropdown (`SELECT outcome_id, outcome_code, outcome_name FROM learning_outcomes ORDER BY outcome_code`); render `teacher/learner_detail.html`
   - Add `POST /teacher/learners/<int:learner_id>/intervene` (`intervene`): read and strip `intervention_type`, `intervention_note`, `target_outcome_id` from form; if either blank flash danger and redirect; validate learner is student (`abort(404)` if not); validate `outcome_id` exists (`abort(404)` if not); INSERT into `teacher_interventions` (`teacher_id`, `learner_id`, `outcome_id`, `intervention_type`, `intervention_note`, `status = 'Assigned'`); INSERT into `activity_logs` (`activity_type = 'Teacher Intervention Assigned'`, description with learner_id, outcome_id, intervention_type); commit; flash success; redirect to `teacher.learner_detail`
   - Apply `@role_required("teacher", "admin")` to both routes
@@ -145,7 +145,7 @@ Implement five missing production capabilities for the Learn2Master Flask/Postgr
   - Section 4 — Intervention History table: columns Outcome, Type, Note, Status, Date; rows from `interventions` ordered `created_at DESC`; empty-state message if no interventions
   - **Requirement refs:** R5.7–R5.8
 
-- [ ] 19. Write property-based tests — Content Management (Properties 1–5)
+- [x] 19. Write property-based tests — Content Management (Properties 1–5)
   - Create `tests/test_properties.py` using `pytest` and `hypothesis`
   - Property 1 (Insert Round-Trip): generate random valid outcome/note/video/example payloads; POST to create route; SELECT row; assert all submitted fields match DB row (validates R1.1, R1.4, R1.10, R1.13, R1.15)
   - Property 2 (Edit Reflects Updates): insert row; generate random field update; POST edit; SELECT; assert new values present and old changed values absent (validates R1.2, R1.5, R1.11)

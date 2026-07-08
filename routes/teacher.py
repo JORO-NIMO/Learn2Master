@@ -274,3 +274,162 @@ def review_practical_evidence(practical_id, action):
 
     flash(f"Practical evidence marked as {status}.", "success")
     return redirect(url_for("teacher.practical_evidence"))
+
+
+# ── Learner Detail + Proactive Interventions ─────────────────────────────────
+
+@teacher_bp.route("/teacher/learners/<int:learner_id>")
+@role_required("teacher", "admin")
+def learner_detail(learner_id):
+    """Display full mastery evidence + intervention history for one learner,
+    plus a form for the teacher to assign a new proactive intervention."""
+    conn = get_db()
+    try:
+        cur = conn.cursor()
+
+        # Validate learner exists and has the student role
+        cur.execute("""
+            SELECT u.user_id, u.full_name, u.username, u.email,
+                   COALESCE(lp.class_level,    'Senior One')       AS class_level,
+                   COALESCE(lp.learning_style, 'Adaptive / Mixed') AS learning_style,
+                   COALESCE(lp.learning_pace,  'Not classified')   AS learning_pace
+            FROM users u
+            JOIN roles r ON u.role_id = r.role_id
+            LEFT JOIN learner_profiles lp ON lp.learner_id = u.user_id
+            WHERE u.user_id = %s AND r.role_name = 'student'
+        """, (learner_id,))
+        learner = cur.fetchone()
+        if not learner:
+            cur.close()
+            from flask import abort
+            abort(404)
+
+        # Mastery summary — all outcomes, left-joined so unstarted ones show
+        cur.execute("""
+            SELECT lo.outcome_id,
+                   lo.outcome_code,
+                   lo.outcome_name,
+                   s.subject_name,
+                   COALESCE(mr.pretest_score,  0)             AS pretest_score,
+                   COALESCE(mr.practice_score, 0)             AS practice_score,
+                   COALESCE(mr.posttest_score, 0)             AS posttest_score,
+                   COALESCE(mr.mastery_score,  0)             AS mastery_score,
+                   COALESCE(mr.mastery_status, 'Not Started') AS mastery_status
+            FROM learning_outcomes lo
+            JOIN competencies c ON lo.competency_id = c.competency_id
+            JOIN subjects s     ON c.subject_id     = s.subject_id
+            LEFT JOIN mastery_records mr
+                ON mr.outcome_id = lo.outcome_id AND mr.learner_id = %s
+            ORDER BY s.subject_name, lo.sequence_order
+        """, (learner_id,))
+        mastery_rows = cur.fetchall()
+
+        # Intervention history — most recent first
+        cur.execute("""
+            SELECT ti.intervention_id,
+                   ti.intervention_type,
+                   ti.intervention_note,
+                   ti.status,
+                   ti.created_at,
+                   lo.outcome_name
+            FROM teacher_interventions ti
+            JOIN learning_outcomes lo ON ti.outcome_id = lo.outcome_id
+            WHERE ti.learner_id = %s
+            ORDER BY ti.created_at DESC
+        """, (learner_id,))
+        interventions = cur.fetchall()
+
+        # Outcomes dropdown for the new-intervention form
+        cur.execute("""
+            SELECT outcome_id, outcome_code, outcome_name
+            FROM learning_outcomes
+            ORDER BY outcome_code
+        """)
+        outcomes = cur.fetchall()
+
+        cur.close()
+    finally:
+        release_db(conn)
+
+    return render_template(
+        "teacher/learner_detail.html",
+        learner=learner,
+        mastery_rows=mastery_rows,
+        interventions=interventions,
+        outcomes=outcomes,
+    )
+
+
+@teacher_bp.route("/teacher/learners/<int:learner_id>/intervene", methods=["POST"])
+@role_required("teacher", "admin")
+def intervene(learner_id):
+    """Assign a proactive intervention to a learner, independent of the AI
+    recommendation flow."""
+    intervention_type = (request.form.get("intervention_type") or "").strip()
+    intervention_note = (request.form.get("intervention_note") or "").strip()
+    target_outcome_id = request.form.get("target_outcome_id", "").strip()
+
+    if not intervention_type or not intervention_note:
+        flash("Intervention type and note are required.", "danger")
+        return redirect(url_for("teacher.learner_detail", learner_id=learner_id))
+
+    conn = get_db()
+    try:
+        cur = conn.cursor()
+
+        # Validate learner is a student
+        cur.execute("""
+            SELECT u.user_id FROM users u
+            JOIN roles r ON u.role_id = r.role_id
+            WHERE u.user_id = %s AND r.role_name = 'student'
+        """, (learner_id,))
+        if not cur.fetchone():
+            cur.close()
+            from flask import abort
+            abort(404)
+
+        # Validate outcome exists
+        cur.execute(
+            "SELECT outcome_id FROM learning_outcomes WHERE outcome_id = %s",
+            (target_outcome_id,)
+        )
+        if not cur.fetchone():
+            cur.close()
+            from flask import abort
+            abort(404)
+
+        # Insert the intervention
+        cur.execute("""
+            INSERT INTO teacher_interventions
+                (teacher_id, learner_id, outcome_id,
+                 intervention_type, intervention_note, status)
+            VALUES (%s, %s, %s, %s, %s, 'Assigned')
+        """, (
+            session["user_id"],
+            learner_id,
+            target_outcome_id,
+            intervention_type,
+            intervention_note,
+        ))
+
+        # Audit trail in activity_logs
+        cur.execute("""
+            INSERT INTO activity_logs
+                (learner_id, activity_type, activity_description)
+            VALUES (%s, %s, %s)
+        """, (
+            learner_id,
+            "Teacher Intervention Assigned",
+            (
+                f"Outcome {target_outcome_id}: {intervention_type} "
+                f"assigned by teacher {session['user_id']}."
+            ),
+        ))
+
+        conn.commit()
+        cur.close()
+    finally:
+        release_db(conn)
+
+    flash("Intervention assigned successfully.", "success")
+    return redirect(url_for("teacher.learner_detail", learner_id=learner_id))

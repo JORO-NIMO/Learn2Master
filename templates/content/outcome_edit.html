@@ -1,0 +1,78 @@
+{% extends "layouts/base.html" %}
+{% block title %}Edit Learning Outcome{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/learning.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<section class="hero-panel">
+  <div>
+    <p class="eyebrow">Teacher Content Management</p>
+    <h1>Edit Learning Outcome</h1>
+    <p>Update the details for <strong>{{ outcome.outcome_code }}</strong>.</p>
+  </div>
+  <div class="hero-badge">
+    <span>Edit</span>
+    <strong>{{ outcome.outcome_code }}</strong>
+  </div>
+</section>
+
+<section class="learn-card">
+  <form method="POST"
+        action="{{ url_for('content.edit_outcome', outcome_id=outcome.outcome_id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="competency_id">Competency</label>
+        <select id="competency_id" name="competency_id" required>
+          <option value="">— Select competency —</option>
+          {% for c in competencies %}
+          <option value="{{ c.competency_id }}"
+            {% if c.competency_id == outcome.competency_id %}selected{% endif %}>
+            {{ c.subject_name }} › {{ c.competency_name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="outcome_code">Outcome Code</label>
+        <input type="text" id="outcome_code" name="outcome_code"
+               value="{{ outcome.outcome_code }}" maxlength="50" required>
+      </div>
+
+      <div class="form-group">
+        <label for="sequence_order">Sequence Order</label>
+        <input type="number" id="sequence_order" name="sequence_order"
+               value="{{ outcome.sequence_order }}" min="1" required>
+      </div>
+
+      <div class="form-group">
+        <label for="mastery_threshold">Mastery Threshold (%)</label>
+        <input type="number" id="mastery_threshold" name="mastery_threshold"
+               value="{{ outcome.mastery_threshold }}" min="1" max="100" required>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="outcome_name">Outcome Name</label>
+      <input type="text" id="outcome_name" name="outcome_name"
+             value="{{ outcome.outcome_name }}" maxlength="255" required>
+    </div>
+
+    <div class="form-group">
+      <label for="outcome_description">Description</label>
+      <textarea id="outcome_description" name="outcome_description"
+                rows="4" required>{{ outcome.outcome_description }}</textarea>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">Save Changes</button>
+      <a href="{{ url_for('content.list_outcomes') }}" class="btn-secondary">Cancel</a>
+    </div>
+  </form>
+</section>
+
+{% endblock %}

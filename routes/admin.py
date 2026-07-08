@@ -1,5 +1,9 @@
 """routes/admin.py — Admin dashboard routes (Supabase/PostgreSQL edition)."""
-from flask import Blueprint, render_template
+import json
+from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, session
+import psycopg2
+import psycopg2.errors
+from werkzeug.security import generate_password_hash
 from routes.guards import role_required
 from database import get_db, release_db
 
@@ -85,6 +89,73 @@ def users():
     finally:
         release_db(conn)
     return render_template("admin/users.html", users=rows)
+
+
+ALLOWED_ROLES = {"teacher", "admin"}
+
+
+@admin_bp.route("/admin/users/create", methods=["GET", "POST"])
+@role_required("admin")
+def create_user():
+    if request.method == "GET":
+        conn = get_db()
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT school_id, school_name FROM schools ORDER BY school_name")
+            schools = cur.fetchall()
+            cur.close()
+        finally:
+            release_db(conn)
+        return render_template("admin/create_user.html", schools=schools)
+
+    # POST — provision a new teacher or admin account
+    full_name = request.form.get("full_name", "").strip()
+    username  = request.form.get("username", "").strip()
+    email     = request.form.get("email", "").strip() or None
+    password  = request.form.get("password", "")
+    role      = request.form.get("role", "").strip()
+    school_id = request.form.get("school_id") or None
+
+    if role not in ALLOWED_ROLES:
+        abort(400)
+
+    # Convert empty school_id string to None (optional field)
+    if school_id is not None:
+        try:
+            school_id = int(school_id)
+        except (ValueError, TypeError):
+            school_id = None
+
+    conn = get_db()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT role_id FROM roles WHERE role_name = %s", (role,))
+        role_row = cur.fetchone()
+        if not role_row:
+            abort(400)
+
+        cur.execute("""
+            INSERT INTO users (full_name, username, email, password_hash, role_id, school_id)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (
+            full_name,
+            username,
+            email,
+            generate_password_hash(password, method="pbkdf2:sha256"),
+            role_row["role_id"],
+            school_id,
+        ))
+        conn.commit()
+        cur.close()
+    except psycopg2.errors.UniqueViolation:
+        conn.rollback()
+        flash("Username or email already exists.", "danger")
+        return redirect(url_for("admin.create_user"))
+    finally:
+        release_db(conn)
+
+    flash(f"{role.title()} account created successfully.", "success")
+    return redirect(url_for("admin.users"))
 
 
 @admin_bp.route("/admin/schools")
@@ -193,18 +264,68 @@ def settings():
     try:
         cur = conn.cursor()
         cur.execute("""
-            SELECT subjects.subject_name, learning_outcomes.outcome_code,
-                   learning_outcomes.outcome_name, learning_outcomes.mastery_threshold
-            FROM learning_outcomes
-            JOIN competencies ON learning_outcomes.competency_id = competencies.competency_id
-            JOIN subjects ON competencies.subject_id = subjects.subject_id
-            ORDER BY subjects.subject_name, learning_outcomes.sequence_order
+            SELECT lo.outcome_id, lo.outcome_code, lo.outcome_name,
+                   lo.mastery_threshold, lo.sequence_order,
+                   s.subject_name
+            FROM learning_outcomes lo
+            JOIN competencies c ON lo.competency_id = c.competency_id
+            JOIN subjects s ON c.subject_id = s.subject_id
+            ORDER BY s.subject_name, lo.sequence_order
         """)
         thresholds = cur.fetchall()
         cur.close()
     finally:
         release_db(conn)
     return render_template("admin/settings.html", thresholds=thresholds)
+
+
+@admin_bp.route("/admin/settings/threshold/<int:outcome_id>", methods=["POST"])
+@role_required("admin")
+def update_threshold(outcome_id):
+    raw = request.form.get("mastery_threshold", "")
+    try:
+        new_threshold = int(raw)
+        if not (1 <= new_threshold <= 100):
+            raise ValueError
+    except (ValueError, TypeError):
+        flash("Threshold must be an integer between 1 and 100.", "danger")
+        return redirect(url_for("admin.settings"))
+
+    conn = get_db()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT mastery_threshold FROM learning_outcomes WHERE outcome_id = %s",
+            (outcome_id,)
+        )
+        row = cur.fetchone()
+        if not row:
+            cur.close()
+            abort(404)
+
+        old_threshold = row["mastery_threshold"]
+        cur.execute(
+            "UPDATE learning_outcomes SET mastery_threshold = %s WHERE outcome_id = %s",
+            (new_threshold, outcome_id)
+        )
+        cur.execute("""
+            INSERT INTO audit_logs
+                (actor_id, action, entity_type, entity_id, details)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (
+            session["user_id"],
+            "update_mastery_threshold",
+            "learning_outcomes",
+            str(outcome_id),
+            json.dumps({"old": old_threshold, "new": new_threshold})
+        ))
+        conn.commit()
+        cur.close()
+    finally:
+        release_db(conn)
+
+    flash(f"Threshold updated to {new_threshold}%.", "success")
+    return redirect(url_for("admin.settings"))
 
 
 @admin_bp.route("/admin/logs")

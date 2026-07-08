@@ -1,1 +1,75 @@
-{% extends "layouts/base.html" %}{% block title %}Settings{% endblock %}{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/learning.css') }}">{% endblock %}{% block content %}<section class="hero-panel"><div><p class="eyebrow">AI Configuration</p><h1>System Settings</h1><p>This page documents active mastery thresholds and offline readiness. Editable settings can be added after supervisor approval.</p></div><div class="hero-badge"><span>Mastery Rule</span><strong>Evidence-Based</strong></div></section><section class="learn-card"><h2>Outcome Thresholds</h2><div class="concept-grid">{% for t in thresholds %}<div class="concept-pill good"><span>{{ t.subject_name }} • {{ t.outcome_code }}</span><strong>{{ t.mastery_threshold }}%</strong><small>{{ t.outcome_name }}</small></div>{% endfor %}</div></section>{% endblock %}
+{% extends "layouts/base.html" %}
+{% block title %}Settings{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/learning.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<section class="hero-panel">
+  <div>
+    <p class="eyebrow">AI Configuration</p>
+    <h1>System Settings</h1>
+    <p>Update mastery thresholds for each learning outcome below.
+       Changes take effect immediately and are recorded in the audit log.</p>
+  </div>
+  <div class="hero-badge">
+    <span>Mastery Rule</span>
+    <strong>Evidence-Based</strong>
+  </div>
+</section>
+
+<section class="learn-card">
+  <h2>Outcome Mastery Thresholds</h2>
+  <p style="color:var(--text-secondary);margin-bottom:1.25rem;">
+    Each threshold is the minimum post-test percentage a learner must achieve
+    to be classified as <strong>Mastered</strong> for that outcome.
+    Valid range: 1–100.
+  </p>
+
+  {% if thresholds %}
+  <div style="overflow-x:auto;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Subject</th>
+          <th>Code</th>
+          <th>Outcome Name</th>
+          <th>Threshold (%)</th>
+          <th>Save</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in thresholds %}
+        <tr>
+          <td>{{ t.subject_name }}</td>
+          <td><strong>{{ t.outcome_code }}</strong></td>
+          <td>{{ t.outcome_name }}</td>
+          <td colspan="2">
+            <form method="POST"
+                  action="{{ url_for('admin.update_threshold', outcome_id=t.outcome_id) }}"
+                  style="display:flex; align-items:center; gap:.5rem;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="number" name="mastery_threshold"
+                     value="{{ t.mastery_threshold }}"
+                     min="1" max="100"
+                     style="width:5rem;"
+                     aria-label="Mastery threshold for {{ t.outcome_code }}">
+              <button type="submit" class="btn-sm">Save</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">
+    No learning outcomes configured yet.
+    Add subjects, competencies, and outcomes via the
+    <a href="{{ url_for('content.admin_curriculum') }}">Curriculum Management</a> page.
+  </p>
+  {% endif %}
+</section>
+
+{% endblock %}

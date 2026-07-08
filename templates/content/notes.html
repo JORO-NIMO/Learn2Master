@@ -1,0 +1,115 @@
+{% extends "layouts/base.html" %}
+{% block title %}Adaptive Notes{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/learning.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<section class="hero-panel">
+  <div>
+    <p class="eyebrow">Teacher Content Management</p>
+    <h1>Adaptive Notes</h1>
+    <p>Create, edit and delete adaptive notes linked to learning outcomes.</p>
+  </div>
+  <div class="hero-badge">
+    <span>Content</span>
+    <strong>Notes</strong>
+  </div>
+</section>
+
+{# ── Create Form ─────────────────────────────────────────────────────────── #}
+<section class="learn-card">
+  <h2>Add New Adaptive Note</h2>
+  <form method="POST" action="{{ url_for('content.create_note') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="outcome_id">Learning Outcome</label>
+        <select id="outcome_id" name="outcome_id" required>
+          <option value="">— Select outcome —</option>
+          {% for o in outcomes %}
+          <option value="{{ o.outcome_id }}">
+            {{ o.outcome_code }} — {{ o.outcome_name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="concept_tag">Concept Tag</label>
+        <input type="text" id="concept_tag" name="concept_tag"
+               placeholder="e.g. binary-search" maxlength="100" required>
+      </div>
+
+      <div class="form-group">
+        <label for="priority">Priority</label>
+        <input type="number" id="priority" name="priority"
+               value="1" min="1" placeholder="1" required>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="note_title">Note Title</label>
+      <input type="text" id="note_title" name="note_title"
+             placeholder="Descriptive note title" maxlength="255" required>
+    </div>
+
+    <div class="form-group">
+      <label for="note_body">Note Body</label>
+      <textarea id="note_body" name="note_body"
+                rows="6" placeholder="Full note content…" required></textarea>
+    </div>
+
+    <button type="submit" class="btn-primary">Create Note</button>
+  </form>
+</section>
+
+{# ── Notes Table ─────────────────────────────────────────────────────────── #}
+<section class="learn-card">
+  <h2>All Adaptive Notes</h2>
+  {% if notes %}
+  <div style="overflow-x:auto;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Outcome Code</th>
+          <th>Outcome Name</th>
+          <th>Concept Tag</th>
+          <th>Note Title</th>
+          <th>Priority</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for n in notes %}
+        <tr>
+          <td><strong>{{ n.outcome_code }}</strong></td>
+          <td>{{ n.outcome_name }}</td>
+          <td>{{ n.concept_tag }}</td>
+          <td>{{ n.note_title }}</td>
+          <td>{{ n.priority }}</td>
+          <td class="action-cell">
+            <a href="{{ url_for('content.edit_note', note_id=n.note_id) }}"
+               class="btn-sm">Edit</a>
+
+            <form method="POST"
+                  action="{{ url_for('content.delete_note', note_id=n.note_id) }}"
+                  style="display:inline"
+                  onsubmit="return confirm('Delete note &quot;{{ n.note_title }}&quot;? This cannot be undone.');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn-sm btn-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">No adaptive notes yet. Use the form above to create the first one.</p>
+  {% endif %}
+</section>
+
+{% endblock %}

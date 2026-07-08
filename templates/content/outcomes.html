@@ -1,0 +1,123 @@
+{% extends "layouts/base.html" %}
+{% block title %}Learning Outcomes{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/learning.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<section class="hero-panel">
+  <div>
+    <p class="eyebrow">Teacher Content Management</p>
+    <h1>Learning Outcomes</h1>
+    <p>Create, edit and delete learning outcomes for the competencies you teach.</p>
+  </div>
+  <div class="hero-badge">
+    <span>Content</span>
+    <strong>Outcomes</strong>
+  </div>
+</section>
+
+{# ── Create Form ─────────────────────────────────────────────────────────── #}
+<section class="learn-card">
+  <h2>Add New Learning Outcome</h2>
+  <form method="POST" action="{{ url_for('content.create_outcome') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="competency_id">Competency</label>
+        <select id="competency_id" name="competency_id" required>
+          <option value="">— Select competency —</option>
+          {% for c in competencies %}
+          <option value="{{ c.competency_id }}">
+            {{ c.subject_name }} › {{ c.competency_name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="outcome_code">Outcome Code</label>
+        <input type="text" id="outcome_code" name="outcome_code"
+               placeholder="e.g. ICT1.1" maxlength="50" required>
+      </div>
+
+      <div class="form-group">
+        <label for="sequence_order">Sequence Order</label>
+        <input type="number" id="sequence_order" name="sequence_order"
+               min="1" placeholder="1" required>
+      </div>
+
+      <div class="form-group">
+        <label for="mastery_threshold">Mastery Threshold (%)</label>
+        <input type="number" id="mastery_threshold" name="mastery_threshold"
+               min="1" max="100" value="80" required>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="outcome_name">Outcome Name</label>
+      <input type="text" id="outcome_name" name="outcome_name"
+             placeholder="Short descriptive name" maxlength="255" required>
+    </div>
+
+    <div class="form-group">
+      <label for="outcome_description">Description</label>
+      <textarea id="outcome_description" name="outcome_description"
+                rows="3" placeholder="Detailed description of what learners will achieve..." required></textarea>
+    </div>
+
+    <button type="submit" class="btn-primary">Create Outcome</button>
+  </form>
+</section>
+
+{# ── Outcomes Table ──────────────────────────────────────────────────────── #}
+<section class="learn-card">
+  <h2>All Learning Outcomes</h2>
+  {% if outcomes %}
+  <div style="overflow-x:auto;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Outcome Name</th>
+          <th>Competency</th>
+          <th>Subject</th>
+          <th>Threshold</th>
+          <th>Seq.</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o in outcomes %}
+        <tr>
+          <td><strong>{{ o.outcome_code }}</strong></td>
+          <td>{{ o.outcome_name }}</td>
+          <td>{{ o.competency_name }}</td>
+          <td>{{ o.subject_name }}</td>
+          <td>{{ o.mastery_threshold }}%</td>
+          <td>{{ o.sequence_order }}</td>
+          <td class="action-cell">
+            <a href="{{ url_for('content.edit_outcome', outcome_id=o.outcome_id) }}"
+               class="btn-sm">Edit</a>
+
+            <form method="POST"
+                  action="{{ url_for('content.delete_outcome', outcome_id=o.outcome_id) }}"
+                  style="display:inline"
+                  onsubmit="return confirm('Delete outcome {{ o.outcome_code }}? This cannot be undone.');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn-sm btn-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">No learning outcomes yet. Use the form above to create the first one.</p>
+  {% endif %}
+</section>
+
+{% endblock %}

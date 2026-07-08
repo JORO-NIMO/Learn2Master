@@ -24,6 +24,8 @@ from routes.framework import framework_bp
 from routes.profile import profile_bp
 from routes.analytics import analytics_bp
 from routes.research import research_bp
+from routes.content import content_bp
+from routes.sync import sync_bp
 
 # ── App factory ───────────────────────────────────────────────────────────────
 app = Flask(__name__)
@@ -65,6 +67,9 @@ app.register_blueprint(framework_bp)
 app.register_blueprint(profile_bp)
 app.register_blueprint(analytics_bp)
 app.register_blueprint(research_bp)
+app.register_blueprint(content_bp)
+app.register_blueprint(sync_bp)
+csrf.exempt(sync_bp)
 
 
 if __name__ == "__main__":

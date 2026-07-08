@@ -1,2 +1,64 @@
-{% extends "layouts/base.html" %}{% block title %}Users{% endblock %}{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/learning.css') }}">{% endblock %}{% block content %}
-<section class="learn-card"><span class="subject-code">Admin</span><h1>Users and Roles</h1><p>Role-based access supports separate Student, Teacher and Admin portals.</p><div class="concept-grid">{% for u in users %}<div class="concept-pill {% if u.role_name=='admin' %}weak{% else %}good{% endif %}"><span>{{ u.full_name }}</span><strong>{{ u.role_name|title }}</strong><small>{{ u.username }} • {{ u.email }} • {{ u.school_name }}</small></div>{% endfor %}</div></section>{% endblock %}
+{% extends "layouts/base.html" %}
+{% block title %}Users{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/learning.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<section class="hero-panel">
+  <div>
+    <p class="eyebrow">Admin — User Management</p>
+    <h1>Users and Roles</h1>
+    <p>Role-based access supports separate Student, Teacher, and Admin portals.</p>
+  </div>
+  <div class="hero-badge">
+    <span>Admin</span>
+    <strong>Users</strong>
+  </div>
+</section>
+
+<section class="learn-card">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+    <h2 style="margin:0;">All Accounts</h2>
+    <a href="{{ url_for('admin.create_user') }}" class="btn-primary">+ Create User</a>
+  </div>
+
+  {% if users %}
+  <div style="overflow-x:auto;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Full Name</th>
+          <th>Username</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>School</th>
+          <th>Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td><strong>{{ u.full_name }}</strong></td>
+          <td>{{ u.username }}</td>
+          <td>{{ u.email or '—' }}</td>
+          <td>
+            <span class="concept-pill {% if u.role_name == 'admin' %}weak{% elif u.role_name == 'teacher' %}good{% else %}{% endif %}"
+                  style="display:inline-block; padding:.2rem .6rem; font-size:.8rem;">
+              {{ u.role_name | title }}
+            </span>
+          </td>
+          <td>{{ u.school_name or '—' }}</td>
+          <td>{{ u.created_at.strftime('%d %b %Y') if u.created_at else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">No users found.</p>
+  {% endif %}
+</section>
+
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "layouts/base.html" %}
+{% block title %}Edit Subject{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/learning.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<section class="hero-panel">
+  <div>
+    <p class="eyebrow">Admin — Curriculum</p>
+    <h1>Edit Subject</h1>
+    <p>Update the name for <strong>{{ subject.subject_name }}</strong>.</p>
+  </div>
+  <div class="hero-badge">
+    <span>Edit</span>
+    <strong>Subject</strong>
+  </div>
+</section>
+
+<section class="learn-card">
+  <form method="POST"
+        action="{{ url_for('content.admin_edit_subject', subject_id=subject.subject_id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="form-group">
+      <label for="subject_name">Subject Name</label>
+      <input type="text" id="subject_name" name="subject_name"
+             value="{{ subject.subject_name }}" maxlength="255" required>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">Save Changes</button>
+      <a href="{{ url_for('content.admin_curriculum') }}" class="btn-secondary">Cancel</a>
+    </div>
+  </form>
+</section>
+
+{% endblock %}

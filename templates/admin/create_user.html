@@ -1,0 +1,91 @@
+{% extends "layouts/base.html" %}
+{% block title %}Create User{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/learning.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<section class="hero-panel">
+  <div>
+    <p class="eyebrow">Admin — User Management</p>
+    <h1>Create New Account</h1>
+    <p>Provision a teacher or admin account directly. Students self-register via the public registration page.</p>
+  </div>
+  <div class="hero-badge">
+    <span>Admin</span>
+    <strong>New User</strong>
+  </div>
+</section>
+
+{# Flash messages #}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }}" role="alert">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<section class="learn-card">
+  <h2>Account Details</h2>
+  <form method="POST" action="{{ url_for('admin.create_user') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="full_name">Full Name</label>
+        <input type="text" id="full_name" name="full_name"
+               placeholder="e.g. Jane Smith" maxlength="255" required>
+      </div>
+
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username"
+               placeholder="Unique login handle" maxlength="100" required>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="email">Email Address</label>
+        <input type="email" id="email" name="email"
+               placeholder="Optional — must be unique if provided" maxlength="255">
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password"
+               placeholder="Minimum 8 characters recommended" required>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="role">Role</label>
+        <select id="role" name="role" required>
+          <option value="">— Select role —</option>
+          <option value="teacher">Teacher</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="school_id">School <small>(optional)</small></label>
+        <select id="school_id" name="school_id">
+          <option value="">— No school —</option>
+          {% for s in schools %}
+          <option value="{{ s.school_id }}">{{ s.school_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:1rem; margin-top:1.5rem;">
+      <button type="submit" class="btn-primary">Create Account</button>
+      <a href="{{ url_for('admin.users') }}" class="btn-secondary">Cancel</a>
+    </div>
+  </form>
+</section>
+
+{% endblock %}

@@ -1,0 +1,114 @@
+{% extends "layouts/base.html" %}
+{% block title %}Adaptive Videos{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/learning.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<section class="hero-panel">
+  <div>
+    <p class="eyebrow">Teacher Content Management</p>
+    <h1>Adaptive Videos</h1>
+    <p>Create and delete adaptive video resources linked to learning outcomes.</p>
+  </div>
+  <div class="hero-badge">
+    <span>Content</span>
+    <strong>Videos</strong>
+  </div>
+</section>
+
+{# ── Create Form ─────────────────────────────────────────────────────────── #}
+<section class="learn-card">
+  <h2>Add New Adaptive Video</h2>
+  <form method="POST" action="{{ url_for('content.create_video') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="outcome_id">Learning Outcome</label>
+        <select id="outcome_id" name="outcome_id" required>
+          <option value="">— Select outcome —</option>
+          {% for o in outcomes %}
+          <option value="{{ o.outcome_id }}">
+            {{ o.outcome_code }} — {{ o.outcome_name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="concept_tag">Concept Tag</label>
+        <input type="text" id="concept_tag" name="concept_tag"
+               placeholder="e.g. binary-search" maxlength="100" required>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="video_title">Video Title</label>
+      <input type="text" id="video_title" name="video_title"
+             placeholder="Descriptive video title" maxlength="255" required>
+    </div>
+
+    <div class="form-group">
+      <label for="video_url">Video URL</label>
+      <input type="url" id="video_url" name="video_url"
+             placeholder="https://www.youtube.com/watch?v=…" required>
+    </div>
+
+    <div class="form-group">
+      <label for="video_description">Description <span style="font-weight:400;">(optional)</span></label>
+      <textarea id="video_description" name="video_description"
+                rows="3" placeholder="Brief description of the video content…"></textarea>
+    </div>
+
+    <button type="submit" class="btn-primary">Add Video</button>
+  </form>
+</section>
+
+{# ── Videos Table ────────────────────────────────────────────────────────── #}
+<section class="learn-card">
+  <h2>All Adaptive Videos</h2>
+  {% if videos %}
+  <div style="overflow-x:auto;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Outcome Code</th>
+          <th>Concept Tag</th>
+          <th>Video Title</th>
+          <th>Video URL</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in videos %}
+        <tr>
+          <td><strong>{{ v.outcome_code }}</strong></td>
+          <td>{{ v.concept_tag }}</td>
+          <td>{{ v.video_title }}</td>
+          <td>
+            <a href="{{ v.video_url }}" target="_blank" rel="noopener noreferrer">
+              {{ v.video_url }}
+            </a>
+          </td>
+          <td class="action-cell">
+            <form method="POST"
+                  action="{{ url_for('content.delete_video', video_id=v.video_id) }}"
+                  style="display:inline"
+                  onsubmit="return confirm('Delete video &quot;{{ v.video_title }}&quot;? This cannot be undone.');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn-sm btn-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">No adaptive videos yet. Use the form above to add the first one.</p>
+  {% endif %}
+</section>
+
+{% endblock %}

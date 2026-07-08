@@ -1,0 +1,108 @@
+{% extends "layouts/base.html" %}
+{% block title %}Worked Examples{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/learning.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<section class="hero-panel">
+  <div>
+    <p class="eyebrow">Teacher Content Management</p>
+    <h1>Worked Examples</h1>
+    <p>Create and delete worked examples linked to learning outcomes.</p>
+  </div>
+  <div class="hero-badge">
+    <span>Content</span>
+    <strong>Examples</strong>
+  </div>
+</section>
+
+{# ── Create Form ─────────────────────────────────────────────────────────── #}
+<section class="learn-card">
+  <h2>Add New Worked Example</h2>
+  <form method="POST" action="{{ url_for('content.create_example') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="outcome_id">Learning Outcome</label>
+        <select id="outcome_id" name="outcome_id" required>
+          <option value="">— Select outcome —</option>
+          {% for o in outcomes %}
+          <option value="{{ o.outcome_id }}">
+            {{ o.outcome_code }} — {{ o.outcome_name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="concept_tag">Concept Tag</label>
+        <input type="text" id="concept_tag" name="concept_tag"
+               placeholder="e.g. binary-search" maxlength="100" required>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="example_title">Example Title</label>
+      <input type="text" id="example_title" name="example_title"
+             placeholder="Descriptive example title" maxlength="255" required>
+    </div>
+
+    <div class="form-group">
+      <label for="example_body">Example Body</label>
+      <textarea id="example_body" name="example_body"
+                rows="6" placeholder="Full worked example content…" required></textarea>
+    </div>
+
+    <div class="form-group">
+      <label for="step_by_step_solution">Step-by-Step Solution <span style="font-weight:400;">(optional)</span></label>
+      <textarea id="step_by_step_solution" name="step_by_step_solution"
+                rows="6" placeholder="Detailed step-by-step solution…"></textarea>
+    </div>
+
+    <button type="submit" class="btn-primary">Add Example</button>
+  </form>
+</section>
+
+{# ── Examples Table ──────────────────────────────────────────────────────── #}
+<section class="learn-card">
+  <h2>All Worked Examples</h2>
+  {% if examples %}
+  <div style="overflow-x:auto;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Outcome Code</th>
+          <th>Concept Tag</th>
+          <th>Example Title</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in examples %}
+        <tr>
+          <td><strong>{{ e.outcome_code }}</strong></td>
+          <td>{{ e.concept_tag }}</td>
+          <td>{{ e.example_title }}</td>
+          <td class="action-cell">
+            <form method="POST"
+                  action="{{ url_for('content.delete_example', example_id=e.example_id) }}"
+                  style="display:inline"
+                  onsubmit="return confirm('Delete example &quot;{{ e.example_title }}&quot;? This cannot be undone.');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn-sm btn-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">No worked examples yet. Use the form above to add the first one.</p>
+  {% endif %}
+</section>
+
+{% endblock %}

@@ -1,0 +1,139 @@
+{% extends "layouts/base.html" %}
+{% block title %}Lessons{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/learning.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<section class="hero-panel">
+  <div>
+    <p class="eyebrow">Teacher Content Management</p>
+    <h1>Lessons</h1>
+    <p>Create, edit and delete lessons linked to courses and learning outcomes.</p>
+  </div>
+  <div class="hero-badge">
+    <span>Content</span>
+    <strong>Lessons</strong>
+  </div>
+</section>
+
+{# ── Create Form ─────────────────────────────────────────────────────────── #}
+<section class="learn-card">
+  <h2>Add New Lesson</h2>
+  <form method="POST" action="{{ url_for('content.create_lesson') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="course_id">Course</label>
+        <select id="course_id" name="course_id" required>
+          <option value="">— Select course —</option>
+          {% for c in courses %}
+          <option value="{{ c.course_id }}">{{ c.course_title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="outcome_id">Learning Outcome</label>
+        <select id="outcome_id" name="outcome_id" required>
+          <option value="">— Select outcome —</option>
+          {% for o in outcomes %}
+          <option value="{{ o.outcome_id }}">
+            {{ o.outcome_code }} — {{ o.outcome_name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="sequence_order">Sequence Order</label>
+        <input type="number" id="sequence_order" name="sequence_order"
+               min="1" placeholder="1" required>
+      </div>
+
+      <div class="form-group">
+        <label for="estimated_minutes">Est. Minutes <span style="font-weight:400">(optional)</span></label>
+        <input type="number" id="estimated_minutes" name="estimated_minutes"
+               min="1" placeholder="e.g. 45">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="lesson_title">Lesson Title</label>
+      <input type="text" id="lesson_title" name="lesson_title"
+             placeholder="Descriptive lesson title" maxlength="255" required>
+    </div>
+
+    <div class="form-group">
+      <label for="video_url">Video URL <span style="font-weight:400">(optional)</span></label>
+      <input type="url" id="video_url" name="video_url"
+             placeholder="https://www.youtube.com/watch?v=...">
+    </div>
+
+    <div class="form-group">
+      <label for="lesson_content">Lesson Content <span style="font-weight:400">(optional)</span></label>
+      <textarea id="lesson_content" name="lesson_content"
+                rows="5" placeholder="Full lesson body or notes…"></textarea>
+    </div>
+
+    <button type="submit" class="btn-primary">Create Lesson</button>
+  </form>
+</section>
+
+{# ── Lessons Table ───────────────────────────────────────────────────────── #}
+<section class="learn-card">
+  <h2>All Lessons</h2>
+  {% if lessons %}
+  <div style="overflow-x:auto;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Course</th>
+          <th>Outcome</th>
+          <th>Seq.</th>
+          <th>Est. Min.</th>
+          <th>Video</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in lessons %}
+        <tr>
+          <td><strong>{{ l.lesson_title }}</strong></td>
+          <td>{{ l.course_title }}</td>
+          <td>{{ l.outcome_code }} — {{ l.outcome_name }}</td>
+          <td>{{ l.sequence_order }}</td>
+          <td>{{ l.estimated_minutes if l.estimated_minutes else '—' }}</td>
+          <td>
+            {% if l.video_url %}
+              <a href="{{ l.video_url }}" target="_blank" rel="noopener">View</a>
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td class="action-cell">
+            <a href="{{ url_for('content.edit_lesson', lesson_id=l.lesson_id) }}"
+               class="btn-sm">Edit</a>
+
+            <form method="POST"
+                  action="{{ url_for('content.delete_lesson', lesson_id=l.lesson_id) }}"
+                  style="display:inline"
+                  onsubmit="return confirm('Delete lesson &quot;{{ l.lesson_title }}&quot;? This cannot be undone.');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn-sm btn-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">No lessons yet. Use the form above to create the first one.</p>
+  {% endif %}
+</section>
+
+{% endblock %}

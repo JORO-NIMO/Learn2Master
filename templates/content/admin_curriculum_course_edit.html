@@ -1,0 +1,77 @@
+{% extends "layouts/base.html" %}
+{% block title %}Edit Course{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/learning.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<section class="hero-panel">
+  <div>
+    <p class="eyebrow">Admin — Curriculum</p>
+    <h1>Edit Course</h1>
+    <p>Update details for <strong>{{ course.course_title }}</strong>.</p>
+  </div>
+  <div class="hero-badge">
+    <span>Edit</span>
+    <strong>Course</strong>
+  </div>
+</section>
+
+<section class="learn-card">
+  <form method="POST"
+        action="{{ url_for('content.admin_edit_course', course_id=course.course_id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="subject_id">Subject</label>
+        <select id="subject_id" name="subject_id" required>
+          <option value="">— Select subject —</option>
+          {% for s in subjects %}
+          <option value="{{ s.subject_id }}"
+            {% if s.subject_id == course.subject_id %}selected{% endif %}>
+            {{ s.subject_name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group" style="flex:2;">
+        <label for="course_title">Course Title</label>
+        <input type="text" id="course_title" name="course_title"
+               value="{{ course.course_title }}" maxlength="255" required>
+      </div>
+
+      <div class="form-group">
+        <label for="difficulty_level">Difficulty Level</label>
+        <select id="difficulty_level" name="difficulty_level">
+          <option value="">— Optional —</option>
+          <option value="Beginner"
+            {% if course.difficulty_level == 'Beginner' %}selected{% endif %}>Beginner</option>
+          <option value="Intermediate"
+            {% if course.difficulty_level == 'Intermediate' %}selected{% endif %}>Intermediate</option>
+          <option value="Advanced"
+            {% if course.difficulty_level == 'Advanced' %}selected{% endif %}>Advanced</option>
+          {# Preserve any custom free-text value already stored #}
+          {% if course.difficulty_level and course.difficulty_level not in ('Beginner', 'Intermediate', 'Advanced') %}
+          <option value="{{ course.difficulty_level }}" selected>{{ course.difficulty_level }}</option>
+          {% endif %}
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="course_description">Description <small>(optional)</small></label>
+      <textarea id="course_description" name="course_description"
+                rows="4">{{ course.course_description or '' }}</textarea>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">Save Changes</button>
+      <a href="{{ url_for('content.admin_curriculum') }}" class="btn-secondary">Cancel</a>
+    </div>
+  </form>
+</section>
+
+{% endblock %}

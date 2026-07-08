@@ -1,0 +1,183 @@
+{% extends "layouts/base.html" %}
+{% block title %}{{ learner.full_name }} — Learner Detail{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/learning.css') }}">
+{% endblock %}
+
+{% block content %}
+
+{# ── Hero ─────────────────────────────────────────────────────────────────── #}
+<section class="hero-panel">
+  <div>
+    <p class="eyebrow">Teacher — Learner Detail</p>
+    <h1>{{ learner.full_name }}</h1>
+    <p>
+      <strong>Username:</strong> {{ learner.username }} &nbsp;|&nbsp;
+      <strong>Class:</strong> {{ learner.class_level }} &nbsp;|&nbsp;
+      <strong>Pace:</strong> {{ learner.learning_pace }} &nbsp;|&nbsp;
+      <strong>Style:</strong> {{ learner.learning_style }}
+    </p>
+  </div>
+  <div class="hero-badge">
+    <span>Learner</span>
+    <strong>{{ learner.username }}</strong>
+  </div>
+</section>
+
+<p style="margin-bottom:1.5rem;">
+  <a href="{{ url_for('teacher.learners') }}" class="btn-secondary">← All Learners</a>
+</p>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# SECTION 1 — Mastery Evidence Summary                                       #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+
+<section class="learn-card">
+  <h2>Mastery Evidence by Outcome</h2>
+  {% if mastery_rows %}
+  <div style="overflow-x:auto;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Subject</th>
+          <th>Code</th>
+          <th>Outcome</th>
+          <th style="text-align:center;">Pretest</th>
+          <th style="text-align:center;">Practice</th>
+          <th style="text-align:center;">Posttest</th>
+          <th style="text-align:center;">Mastery</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in mastery_rows %}
+        {% set status = row.mastery_status %}
+        <tr>
+          <td>{{ row.subject_name }}</td>
+          <td><strong>{{ row.outcome_code }}</strong></td>
+          <td>{{ row.outcome_name }}</td>
+          <td style="text-align:center;">{{ row.pretest_score }}%</td>
+          <td style="text-align:center;">{{ row.practice_score }}%</td>
+          <td style="text-align:center;">{{ row.posttest_score }}%</td>
+          <td style="text-align:center;"><strong>{{ row.mastery_score }}%</strong></td>
+          <td>
+            {% if status == 'Mastered' %}
+              <span class="concept-pill good" style="display:inline-block;padding:.2rem .6rem;font-size:.8rem;">Mastered</span>
+            {% elif status == 'Not Started' %}
+              <span class="concept-pill" style="display:inline-block;padding:.2rem .6rem;font-size:.8rem;background:var(--bg-secondary,#f3f4f6);color:var(--text-secondary,#6b7280);">Not Started</span>
+            {% else %}
+              <span class="concept-pill weak" style="display:inline-block;padding:.2rem .6rem;font-size:.8rem;">{{ status }}</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">No mastery records for this learner yet.</p>
+  {% endif %}
+</section>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# SECTION 2 — Assign Intervention                                            #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+
+<section class="learn-card">
+  <h2>Assign Intervention</h2>
+  <p style="color:var(--text-secondary);margin-bottom:1rem;">
+    Assign a targeted intervention based on your professional judgement.
+    This is independent of the AI recommendation flow.
+  </p>
+
+  <form method="POST"
+        action="{{ url_for('teacher.intervene', learner_id=learner.user_id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="target_outcome_id">Learning Outcome</label>
+        <select id="target_outcome_id" name="target_outcome_id" required>
+          <option value="">— Select outcome —</option>
+          {% for o in outcomes %}
+          <option value="{{ o.outcome_id }}">
+            {{ o.outcome_code }} — {{ o.outcome_name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="intervention_type">Intervention Type</label>
+        <select id="intervention_type" name="intervention_type" required>
+          <option value="">— Select type —</option>
+          <option value="Targeted Practice">Targeted Practice</option>
+          <option value="One-to-One Session">One-to-One Session</option>
+          <option value="Peer Support">Peer Support</option>
+          <option value="Parent Contact">Parent Contact</option>
+          <option value="Referral">Referral</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="intervention_note">Intervention Note</label>
+      <textarea id="intervention_note" name="intervention_note"
+                rows="4"
+                placeholder="Describe the specific intervention and your reasoning…"
+                required></textarea>
+    </div>
+
+    <button type="submit" class="btn-primary">Assign Intervention</button>
+  </form>
+</section>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# SECTION 3 — Intervention History                                           #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+
+<section class="learn-card">
+  <h2>Intervention History</h2>
+  {% if interventions %}
+  <div style="overflow-x:auto;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Outcome</th>
+          <th>Type</th>
+          <th>Note</th>
+          <th>Status</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for i in interventions %}
+        <tr>
+          <td>{{ i.outcome_name }}</td>
+          <td>{{ i.intervention_type }}</td>
+          <td style="max-width:24rem;">{{ i.intervention_note }}</td>
+          <td>
+            {% if i.status == 'Assigned' %}
+              <span class="concept-pill weak" style="display:inline-block;padding:.2rem .6rem;font-size:.8rem;">Assigned</span>
+            {% else %}
+              <span class="concept-pill good" style="display:inline-block;padding:.2rem .6rem;font-size:.8rem;">{{ i.status }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if i.created_at %}
+              {{ i.created_at.strftime('%d %b %Y') }}
+            {% else %}
+              —
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">No interventions assigned yet for this learner.</p>
+  {% endif %}
+</section>
+
+{% endblock %}

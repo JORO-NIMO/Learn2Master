@@ -1,0 +1,189 @@
+{% extends "layouts/base.html" %}
+{% block title %}Edit Question{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/learning.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<section class="hero-panel">
+  <div>
+    <p class="eyebrow">Teacher Content Management</p>
+    <h1>Edit Question</h1>
+    <p>Update the question and its answer options for
+      <strong>{{ question.assessment_title }}</strong>.</p>
+  </div>
+  <div class="hero-badge">
+    <span>Edit</span>
+    <strong>Question</strong>
+  </div>
+</section>
+
+<section class="learn-card">
+  <form method="POST"
+        action="{{ url_for('content.edit_question', question_id=question.question_id) }}"
+        id="edit-question-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="assessment_id">Assessment</label>
+        <select id="assessment_id" name="assessment_id" required>
+          <option value="">— Select assessment —</option>
+          {% for a in assessments %}
+          <option value="{{ a.assessment_id }}"
+            {% if a.assessment_id == question.assessment_id %}selected{% endif %}>
+            {{ a.lesson_title }} — {{ a.assessment_title }} ({{ a.assessment_type }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="concept_tag">Concept Tag</label>
+        <input type="text" id="concept_tag" name="concept_tag"
+               value="{{ question.concept_tag }}" maxlength="100" required>
+      </div>
+
+      <div class="form-group">
+        <label for="difficulty_level">Difficulty</label>
+        <select id="difficulty_level" name="difficulty_level">
+          {% for level in ['standard', 'easy', 'hard'] %}
+          <option value="{{ level }}"
+            {% if question.difficulty_level == level %}selected{% endif %}>
+            {{ level | capitalize }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="marks">Marks</label>
+        <input type="number" id="marks" name="marks"
+               value="{{ question.marks }}" min="1" max="100" required>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="question_text">Question Text</label>
+      <textarea id="question_text" name="question_text"
+                rows="3" required>{{ question.question_text }}</textarea>
+    </div>
+
+    <input type="hidden" name="question_type" value="{{ question.question_type }}">
+
+    {# ── Dynamic option editor ───────────────────────────────────────────── #}
+    <div class="form-group">
+      <label>Answer Options
+        <span style="font-weight:400;font-size:.85rem">
+          (2–6; select the radio button of the correct answer)
+        </span>
+      </label>
+
+      <div id="options-container">
+        {% for opt in options %}
+        <div class="option-row"
+             style="display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem">
+          <input type="radio" name="correct_option_index"
+                 value="{{ loop.index0 }}"
+                 {% if loop.index0 == correct_index %}checked{% endif %}
+                 title="Mark as correct answer">
+          <input type="text" name="option_text"
+                 value="{{ opt.option_text }}"
+                 placeholder="Option {{ ['A','B','C','D','E','F'][loop.index0] }}"
+                 style="flex:1" required>
+          <button type="button" class="btn-sm btn-danger remove-option"
+                  title="Remove option"
+                  {% if options | length <= 2 %}style="display:none"{% endif %}>✕</button>
+        </div>
+        {% endfor %}
+      </div>
+
+      <button type="button" id="add-option-btn" class="btn-secondary"
+              style="margin-top:.5rem;
+              {% if options | length >= 6 %}display:none{% endif %}">
+        + Add Option
+      </button>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">Save Changes</button>
+      <a href="{{ url_for('content.list_questions') }}" class="btn-secondary">Cancel</a>
+    </div>
+  </form>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  'use strict';
+
+  const MAX_OPTIONS = 6;
+  const container   = document.getElementById('options-container');
+  const addBtn      = document.getElementById('add-option-btn');
+
+  const LABELS = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+  /** Re-index all option rows so radio values match their visual position */
+  function reindex() {
+    const rows = container.querySelectorAll('.option-row');
+    rows.forEach(function (row, i) {
+      const radio = row.querySelector('input[type="radio"]');
+      const text  = row.querySelector('input[type="text"]');
+      // Preserve checked state across reindex
+      radio.value      = i;
+      text.placeholder = 'Option ' + LABELS[i];
+
+      const removeBtn = row.querySelector('.remove-option');
+      removeBtn.style.display = rows.length > 2 ? '' : 'none';
+    });
+
+    addBtn.style.display = rows.length >= MAX_OPTIONS ? 'none' : '';
+  }
+
+  /** Add a new option row */
+  addBtn.addEventListener('click', function () {
+    const rows = container.querySelectorAll('.option-row');
+    if (rows.length >= MAX_OPTIONS) return;
+
+    const idx = rows.length;
+    const div = document.createElement('div');
+    div.className = 'option-row';
+    div.style.cssText = 'display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem';
+    div.innerHTML =
+      '<input type="radio" name="correct_option_index" value="' + idx + '" ' +
+        'title="Mark as correct answer">' +
+      '<input type="text" name="option_text" placeholder="Option ' + LABELS[idx] + '" ' +
+        'style="flex:1" required>' +
+      '<button type="button" class="btn-sm btn-danger remove-option" ' +
+        'title="Remove option">✕</button>';
+
+    div.querySelector('.remove-option').addEventListener('click', removeHandler);
+    container.appendChild(div);
+    reindex();
+  });
+
+  /** Remove an option row */
+  function removeHandler() {
+    const rows = container.querySelectorAll('.option-row');
+    if (rows.length <= 2) return;
+
+    const radio = this.closest('.option-row').querySelector('input[type="radio"]');
+    if (radio.checked) radio.checked = false;
+
+    this.closest('.option-row').remove();
+    reindex();
+  }
+
+  // Bind remove handlers on existing rows rendered by Jinja
+  container.querySelectorAll('.remove-option').forEach(function (btn) {
+    btn.addEventListener('click', removeHandler);
+  });
+
+  // Run initial reindex so button visibility reflects server-rendered count
+  reindex();
+})();
+</script>
+{% endblock %}
