@@ -210,7 +210,7 @@ class KnowledgeBase:
             return "\n".join(filter(None, [self._extract_text(i, depth + 1) for i in obj[:MAX_JSON_ITEMS]]))
         return ""
 
-    def process_file(self, filepath, metadata=None, summarize=False):
+    def process_file(self, filepath, metadata=None, summarize=False, in_memory=True):
         filename = os.path.basename(filepath)
         if filename.startswith('_'): return False, 0
 
@@ -240,16 +240,26 @@ class KnowledgeBase:
                         logger.warning(f"PDF {filename} is encrypted. Attempting to decrypt with empty password.")
                         try:
                             reader.decrypt("")
-                        except:
-                            logger.error(f"Could not decrypt {filename}")
+                        except Exception as dec_err:
+                            logger.error(f"Could not decrypt {filename}: {dec_err}")
                             return False, 0
 
-                    for page in reader.pages:
+                    total_pages = len(reader.pages)
+                    extracted_pages = 0
+                    for i, page in enumerate(reader.pages):
                         try:
                             extracted = page.extract_text()
-                            if extracted: text += extracted + "\n"
+                            if extracted and len(extracted.strip()) > 5:
+                                text += extracted + "\n"
+                                extracted_pages += 1
                         except Exception as pg_err:
-                            logger.warning(f"Error on PDF page in {filename}: {pg_err}")
+                            logger.warning(f"Error on PDF page {i+1} in {filename}: {pg_err}")
+
+                    if extracted_pages == 0:
+                        logger.warning(f"Failed to extract any meaningful text from PDF {filename}")
+                    else:
+                        logger.info(f"Extracted text from {extracted_pages}/{total_pages} pages in {filename}")
+
                 except Exception as pdf_err:
                     logger.error(f"Failed to read PDF {filename}: {pdf_err}")
                     return False, 0
@@ -330,7 +340,7 @@ class KnowledgeBase:
                 self._processed_files[filename] = file_hash
                 self._save_metadata_internal(filename, file_hash)
 
-        return True, processed_size
+        return True, processed_size, supabase_storage_success
 
     def load_and_process(self):
         if not self.directory.exists():
@@ -355,11 +365,20 @@ class KnowledgeBase:
                 logger.error(f"Supabase Storage sync error: {e}")
 
         # 2. Process all files in directory
+        # Optimization: In production with Supabase, we skip populating in-memory chunks to save RAM
+        skip_in_memory = self.supabase is not None and os.environ.get('FLASK_ENV') == 'production'
+
         for filename in sorted(os.listdir(self.directory)):
             if filename.startswith('_'): continue
             filepath = self.directory / filename
             if filepath.is_file() and filepath.stat().st_size <= MAX_FILE_BYTES:
-                self.process_file(str(filepath))
+                if skip_in_memory:
+                    # Just check if we need to process it for Supabase
+                    file_hash = self._get_file_hash(str(filepath))
+                    if filename not in self._processed_files or self._processed_files[filename] != file_hash:
+                         self.process_file(str(filepath), in_memory=False)
+                else:
+                    self.process_file(str(filepath), in_memory=True)
 
         # 3. Load dynamic KB entries
         if self.dynamic_kb_path.exists():
@@ -442,6 +461,21 @@ class KnowledgeBase:
         except Exception as e:
             logger.error(f"Local search error: {e}")
             return []
+
+    def get_all_chunks(self, page=1, per_page=50):
+        """Fetches all chunks, prioritizing Supabase if available."""
+        start = (page - 1) * per_page
+        if self.supabase:
+            try:
+                response = self.supabase.table('kb_documents').select('content').range(start, start + per_page - 1).execute()
+                if response.data:
+                    return [item['content'] for item in response.data], len(self.chunks) # Fallback count for now or implement a count RPC
+            except Exception as e:
+                logger.error(f"Supabase get_all_chunks error: {e}. Falling back to local.")
+
+        with self._lock:
+            total = len(self.chunks)
+            return self.chunks[start : start + per_page], total
 
     def add_knowledge(self, text, metadata=None):
         text = text.strip()

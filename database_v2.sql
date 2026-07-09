@@ -717,6 +717,14 @@ CREATE TABLE IF NOT EXISTS teacher_kb_uploads (
     FOREIGN KEY (teacher_id) REFERENCES users(user_id)
 );
 
+CREATE TABLE IF NOT EXISTS kb_processed_files (
+    file_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    filename TEXT UNIQUE NOT NULL,
+    file_hash TEXT NOT NULL,
+    status TEXT DEFAULT 'Processed',
+    processed_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS audit_logs (
     audit_id INTEGER PRIMARY KEY AUTOINCREMENT,
     actor_id INTEGER,

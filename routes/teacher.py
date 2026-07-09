@@ -298,12 +298,9 @@ def teacher_kb_view():
     page = request.args.get('page', 1, type=int)
     per_page = 50
     kb = get_kb()
-    total_chunks = len(kb.chunks)
-    total_pages = math.ceil(total_chunks / per_page)
 
-    start = (page - 1) * per_page
-    end = start + per_page
-    chunks = kb.chunks[start:end]
+    chunks, total_chunks = kb.get_all_chunks(page=page, per_page=per_page)
+    total_pages = math.ceil(total_chunks / per_page)
 
     return render_template("teacher_kb_view.html", chunks=chunks, page=page, total_pages=total_pages)
 
@@ -431,7 +428,7 @@ def teacher_kb_upload():
             file.save(str(filepath))
 
             # Use unified processing method with summarization forced for teachers
-            success, summary_size = kb.process_file(str(filepath), metadata={"teacher_id": teacher_id}, summarize=True)
+            success, summary_size, synced = kb.process_file(str(filepath), metadata={"teacher_id": teacher_id}, summarize=True)
 
             if success:
                 # Record upload
@@ -441,6 +438,10 @@ def teacher_kb_upload():
                 """, (teacher_id, filename, file_size, summary_size))
                 conn.commit()
                 flash(f"File {filename} uploaded and processed with AI summarization.", "success")
+
+                # Cleanup local file only if successfully synced to cloud storage
+                if synced and os.path.exists(str(filepath)):
+                    os.remove(str(filepath))
             else:
                 flash(f"Error processing {filename}.", "danger")
 
