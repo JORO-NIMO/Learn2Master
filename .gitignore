@@ -3,7 +3,12 @@ __pycache__/
 .pytest_cache/
 .tmp_pytest/
 .env
+.env.*
+!.env.example
 instance/
 *.db
+logs/
+*.log
 uploads/
 static/uploads/
+.DS_Store

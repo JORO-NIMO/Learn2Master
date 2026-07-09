@@ -1,15 +1,17 @@
-version: '3.8'
-
 services:
   app:
     build: .
     ports:
       - "5000:5000"
     environment:
-      - SECRET_KEY=production-secret-key-change-me
-      - DATABASE_URL=sqlite:///instance/learn2master.db
+      # Required. Fails fast if SECRET_KEY is not exported on the host
+      # (or defined in a local .env file next to this compose file).
+      - LEARN2MASTER_SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set}
+      # For a real deployment, point this at a managed Postgres/Supabase
+      # instance so data persists outside the container, e.g.:
+      #   DATABASE_URL=postgresql://user:pass@host:5432/dbname
+      - DATABASE_URL=${DATABASE_URL:-}
       - FLASK_APP=app.py
     volumes:
-      - ./instance:/app/instance
       - ./logs:/app/logs
     restart: always

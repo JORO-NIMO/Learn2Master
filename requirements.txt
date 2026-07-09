@@ -4,7 +4,6 @@ pytest>=8.0.0
 Flask-SQLAlchemy>=3.1.1
 Flask-Login>=0.6.3
 Flask-WTF>=1.2.1
-Flask-Migrate>=4.0.7
 flask-talisman>=1.1.0
 Flask-Limiter>=3.8.0
 whitenoise>=6.7.0
