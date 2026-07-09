@@ -3,7 +3,6 @@ import logging
 from logging.handlers import RotatingFileHandler
 from whitenoise import WhiteNoise
 from flask import Flask, redirect, request, render_template, send_from_directory, session, url_for
-from flask_migrate import Migrate
 from flask_login import LoginManager, current_user
 from models import db, User, Role, School
 from extensions import talisman, limiter
@@ -60,16 +59,7 @@ if os.environ.get('TESTING'):
 else:
     app.config.setdefault("RATELIMIT_DEFAULT", "200 per day; 50 per hour")
 
-# Production configuration
-db_url = os.environ.get('DATABASE_URL')
-if db_url:
-    if db_url.startswith("postgres://"):
-        db_url = db_url.replace("postgres://", "postgresql://", 1)
-    app.config['SQLALCHEMY_DATABASE_URI'] = db_url
-elif not app.config.get('SQLALCHEMY_DATABASE_URI'):
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(app.root_path, 'learn2master.db')
-
-# Note: SECRET_KEY is now managed via Config class in config.py
+# Note: SECRET_KEY and SQLALCHEMY_DATABASE_URI are managed via Config in config.py
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Logging Configuration
@@ -86,7 +76,6 @@ if not app.debug:
 
 # Database initialization
 db.init_app(app)
-migrate = Migrate(app, db)
 
 # Automatic database initialization check
 with app.app_context():
@@ -133,6 +122,31 @@ def inject_security_helpers():
 @app.route("/service-worker.js")
 def service_worker():
     return send_from_directory(app.root_path, "service-worker.js", mimetype="application/javascript")
+
+@app.route("/health")
+def health():
+    """Lightweight liveness/readiness probe used by Docker and load balancers."""
+    from database import get_db
+    status = {"status": "ok"}
+    try:
+        conn = get_db()
+        conn.execute("SELECT 1")
+        conn.close()
+        status["database"] = "ok"
+    except Exception as exc:
+        app.logger.error("Health check database probe failed: %s", exc)
+        status["status"] = "degraded"
+        status["database"] = "error"
+        return status, 503
+    return status, 200
+
+@app.errorhandler(404)
+def handle_not_found(error):
+    return render_template("errors/404.html"), 404
+
+@app.errorhandler(500)
+def handle_server_error(error):
+    return render_template("errors/500.html"), 500
 
 @app.before_request
 def enforce_password_change():
