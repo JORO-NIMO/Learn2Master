@@ -23,10 +23,10 @@ def master_db():
         conn.executescript(f.read())
     conn.commit()
     conn.close()
-    subprocess.run(["python3", "seed_data.py"], check=True, capture_output=True)
+    import sys; subprocess.run([sys.executable, "seed_data.py"], check=True)
 
 @pytest.fixture()
-def app(tmp_path):
+def app(tmp_path, master_db):
     db_path = tmp_path / "test.db"
     shutil.copyfile(PROJECT_DB, str(db_path))
 

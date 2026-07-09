@@ -3,6 +3,9 @@ from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta, timezone
 import sqlite3
+import os
+import logging
+from supabase import create_client, Client
 
 from database import get_db
 from models import db, User
@@ -10,7 +13,21 @@ from security import csrf_protect
 from routes.guards import role_home_endpoint
 from extensions import limiter
 
+logger = logging.getLogger(__name__)
+
 auth_bp = Blueprint("auth", __name__)
+
+# Initialize Supabase client for routes/auth.py if configured
+supabase_url = os.environ.get("SUPABASE_URL")
+supabase_key = os.environ.get("SUPABASE_KEY")
+supabase_client = None
+
+if supabase_url and supabase_key:
+    try:
+        supabase_client = create_client(supabase_url, supabase_key)
+        logger.info("Supabase client initialized successfully in routes/auth.py.")
+    except Exception as e:
+        logger.error(f"Failed to initialize Supabase client in routes/auth.py: {e}")
 
 def password_meets_policy(password):
     password = password or ""
@@ -40,18 +57,29 @@ def login_view():
 @csrf_protect
 @limiter.limit("5 per minute")
 def login():
-    username = request.form.get("username")
+    email_or_username = request.form.get("email") or request.form.get("username")
     password = request.form.get("password")
 
     conn = get_db()
 
+    # Try lookup by email first
     user = conn.execute("""
         SELECT users.*, roles.role_name, schools.school_name
         FROM users
         JOIN roles ON users.role_id = roles.role_id
         LEFT JOIN schools ON users.school_id = schools.school_id
-        WHERE users.username = ?
-    """, (username,)).fetchone()
+        WHERE users.email = ?
+    """, (email_or_username,)).fetchone()
+
+    if not user:
+        # Graceful fallback to username-to-email lookup to preserve backward compatibility for test cases and local users
+        user = conn.execute("""
+            SELECT users.*, roles.role_name, schools.school_name
+            FROM users
+            JOIN roles ON users.role_id = roles.role_id
+            LEFT JOIN schools ON users.school_id = schools.school_id
+            WHERE users.username = ?
+        """, (email_or_username,)).fetchone()
 
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
@@ -83,7 +111,30 @@ def login():
             flash("This account is temporarily locked after repeated failed attempts.", "danger")
             return redirect(url_for("auth.home"))
 
-    if user and check_password_hash(user["password_hash"], password):
+    # Check authentication
+    auth_verified = False
+    email_to_authenticate = user["email"] if (user and user["email"]) else email_or_username
+
+    # 1. Try Supabase-native password authentication first if configured
+    if supabase_client and email_to_authenticate and "@" in email_to_authenticate:
+        try:
+            auth_response = supabase_client.auth.sign_in_with_password(credentials={
+                "email": email_to_authenticate,
+                "password": password
+            })
+            if auth_response and auth_response.user:
+                auth_verified = True
+                logger.info(f"Supabase native sign-in success for user: {email_to_authenticate}")
+        except Exception as e:
+            logger.warning(f"Supabase Auth sign-in failed/skipped for {email_to_authenticate}: {e}")
+
+    # 2. Local fallback verification if Supabase not configured or failed
+    if not auth_verified and user:
+        if check_password_hash(user["password_hash"], password):
+            auth_verified = True
+            logger.info(f"Local fallback password verification success for user: {user['username']}")
+
+    if user and auth_verified:
         conn.execute("""
             UPDATE users
             SET failed_login_attempts = 0,
@@ -132,7 +183,7 @@ def login():
         conn.commit()
     conn.close()
 
-    flash("Invalid username or password.", "danger")
+    flash("Invalid email or password.", "danger")
     return redirect(url_for("auth.home"))
 
 @auth_bp.route("/register", methods=["GET", "POST"])
@@ -146,9 +197,29 @@ def register():
         school_name = request.form.get("school_name")
         role_name = "learner"
 
+        if not email:
+            flash("Email Address is required.", "danger")
+            return redirect(url_for("auth.register"))
+
         if not password_meets_policy(password):
             flash("Password must be at least 8 characters and include letters and numbers.", "danger")
             return redirect(url_for("auth.register"))
+
+        # 1. Supabase Auth Sign Up First if configured
+        if supabase_client:
+            try:
+                signup_response = supabase_client.auth.sign_up(credentials={
+                    "email": email,
+                    "password": password
+                })
+                if not (signup_response and signup_response.user):
+                    flash("Failed to create account with auth service. Please try again.", "danger")
+                    return redirect(url_for("auth.register"))
+                logger.info(f"Supabase native sign-up success for user: {email}")
+            except Exception as e:
+                logger.error(f"Supabase Auth registration failed for {email}: {e}")
+                flash(f"Registration failed: {str(e)}", "danger")
+                return redirect(url_for("auth.register"))
 
         conn = get_db()
 

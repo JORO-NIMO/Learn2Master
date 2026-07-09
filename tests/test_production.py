@@ -6,17 +6,14 @@ from models import User
 class TestProduction(unittest.TestCase):
     def setUp(self):
         app.config['TESTING'] = True
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+
         app.config['WTF_CSRF_ENABLED'] = False
         app.config['DEBUG'] = True
         self.client = app.test_client()
-        with app.app_context():
-            db.create_all()
+
 
     def tearDown(self):
-        with app.app_context():
-            db.session.remove()
-            db.drop_all()
+        pass
 
     def test_404_handler(self):
         response = self.client.get('/this-route-does-not-exist')
