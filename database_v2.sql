@@ -1,6 +1,7 @@
 PRAGMA foreign_keys = ON;
 
 DROP TABLE IF EXISTS audit_logs;
+DROP TABLE IF EXISTS kb_processed_files;
 DROP TABLE IF EXISTS system_settings;
 DROP TABLE IF EXISTS backups;
 DROP TABLE IF EXISTS cached_resources;
@@ -733,6 +734,13 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     details TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (actor_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE IF NOT EXISTS kb_processed_files (
+    file_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    filename TEXT UNIQUE NOT NULL,
+    file_hash TEXT NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
 INSERT INTO roles (role_name, display_name) VALUES
