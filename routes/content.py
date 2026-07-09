@@ -122,7 +122,8 @@ def list_outcomes():
 @content_bp.route("/teacher/content/outcomes/create", methods=["POST"])
 @role_required("teacher", "admin")
 def create_outcome():
-    """POST — insert a new learning outcome row."""    competency_id       = request.form.get("competency_id", "").strip()
+    """POST — insert a new learning outcome row."""
+    competency_id       = request.form.get("competency_id", "").strip()
     outcome_code        = request.form.get("outcome_code", "").strip()
     outcome_name        = request.form.get("outcome_name", "").strip()
     outcome_description = request.form.get("outcome_description", "").strip()
