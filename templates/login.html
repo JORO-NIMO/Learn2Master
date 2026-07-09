@@ -31,8 +31,8 @@
             <form method="POST" action="{{ url_for('auth.login') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="input-group">
-                    <label>Username</label>
-                    <input type="text" name="username" placeholder="Enter your username" required>
+                    <label>Email Address</label>
+                    <input type="email" name="email" placeholder="Enter your email" required>
                 </div>
 
                 <div class="input-group">
@@ -56,9 +56,7 @@
                 <a href="{{ url_for('auth.register') }}">Sign up</a>
             </p>
 
-            <p class="demo-login">
-                Demo: <strong>elijah</strong> / <strong>12345</strong>
-            </p>
+
         </div>
 
         <div class="login-image-side">

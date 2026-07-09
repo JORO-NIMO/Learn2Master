@@ -344,3 +344,51 @@ def test_new_research_ai_portfolio_and_admin_routes_render(client):
     client.get("/logout")
     login(client, "teacher", "12345")
     assert client.get("/teacher/portfolio/1").status_code == 200
+
+
+def test_supabase_auth_integration_and_fallbacks(client, db):
+    # 1. Test Registration with required email
+    response = client.post(
+        "/register",
+        data={
+            "full_name": "Supabase Test User",
+            "username": "supatest",
+            "email": "supatest@example.com",
+            "password": "SecurePassword123",
+            "school_name": "Kigezi High School",
+            "csrf_token": csrf_token(client),
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+
+    # Check that user is in local database
+    row = db.execute("SELECT * FROM users WHERE username = 'supatest'").fetchone()
+    assert row is not None
+    assert row["email"] == "supatest@example.com"
+
+    # 2. Test Login using email address
+    response = client.post(
+        "/login",
+        data={
+            "email": "supatest@example.com",
+            "password": "SecurePassword123",
+            "csrf_token": csrf_token(client),
+        },
+        follow_redirects=False,
+    )
+    # Since it is a 'Pending' account status by default, it redirects to auth.home
+    # and flashes the active message.
+    assert response.status_code == 302
+
+    # 3. Test login with username instead of email (fallback lookup compatibility)
+    response = client.post(
+        "/login",
+        data={
+            "email": "supatest", # passing username inside email field
+            "password": "SecurePassword123",
+            "csrf_token": csrf_token(client),
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
