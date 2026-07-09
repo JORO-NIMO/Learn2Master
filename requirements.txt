@@ -14,6 +14,7 @@ psycopg2-binary==2.9.9
 
 # Supabase Python client (used for Storage file uploads)
 supabase==2.4.6
+gotrue==2.12.4
 
 # Environment variable management
 python-dotenv==1.0.1

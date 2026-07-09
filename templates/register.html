@@ -14,7 +14,8 @@
             <div class="register-overlay">
                 <div class="brand-mark big">🎓</div>
                 <h1>Join Learn2Master</h1>
-                <p>Build your CBC mastery profile, track competencies, and receive smart learning guidance.</p>
+                <p>Build your CBC mastery profile, track competencies,
+                   and receive smart learning guidance.</p>
                 <a href="{{ url_for('auth.home') }}">Already registered?</a>
             </div>
         </div>
@@ -26,7 +27,9 @@
             </div>
 
             <h1>Create Account</h1>
-            <p class="login-subtitle">Start your personalized mastery-based learning journey.</p>
+            <p class="login-subtitle">
+                Students register here. Teachers and admins are provisioned by your school administrator.
+            </p>
 
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
@@ -38,39 +41,63 @@
 
             <form method="POST" action="{{ url_for('auth.register') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="form-grid">
-                    <div class="input-group">
-                        <label>Full Name</label>
-                        <input type="text" name="full_name" placeholder="e.g. Tukamushaba Elijah" required>
-                    </div>
-
-                    <div class="input-group">
-                        <label>Username</label>
-                        <input type="text" name="username" placeholder="Choose username" required>
-                    </div>
-                </div>
 
                 <div class="input-group">
-                    <label>Email Address</label>
-                    <input type="email" name="email" placeholder="example@email.com">
+                    <label for="email">Email Address
+                        <span style="color:#e3342f;"> *</span>
+                    </label>
+                    <input type="email" id="email" name="email"
+                           placeholder="your@email.com"
+                           autocomplete="email"
+                           required>
+                    <small style="color:#64748b;">
+                        You will receive a confirmation email. Use a real address.
+                    </small>
                 </div>
 
                 <div class="form-grid">
                     <div class="input-group">
-                        <label>School</label>
-                        <input type="text" name="school_name" value="Kigezi High School" required>
+                        <label for="full_name">Full Name</label>
+                        <input type="text" id="full_name" name="full_name"
+                               placeholder="e.g. Tukamushaba Elijah"
+                               autocomplete="name"
+                               required>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" name="username"
+                               placeholder="Choose a unique username"
+                               autocomplete="username"
+                               required>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="input-group">
+                        <label for="school_name">School Name</label>
+                        <input type="text" id="school_name" name="school_name"
+                               placeholder="e.g. Kigezi High School"
+                               autocomplete="organization">
                     </div>
 
                     <div class="input-group">
                         <label>Role</label>
-                        <input type="text" value="Student" disabled style="background:#f0f4f9;color:#64748b;">
-                        <!-- Role is always Student. Admins create teacher/admin accounts via the admin panel. -->
+                        <input type="text" value="Student" disabled
+                               style="background:#f0f4f9;color:#64748b;"
+                               title="Students self-register. Admins create teacher/admin accounts.">
                     </div>
                 </div>
 
                 <div class="input-group">
-                    <label>Password</label>
-                    <input type="password" name="password" placeholder="Create secure password" required>
+                    <label for="password">Password
+                        <span style="color:#e3342f;"> *</span>
+                    </label>
+                    <input type="password" id="password" name="password"
+                           placeholder="Minimum 8 characters"
+                           autocomplete="new-password"
+                           minlength="8"
+                           required>
                 </div>
 
                 <button type="submit" class="login-btn">Create Account</button>
@@ -78,7 +105,7 @@
 
             <p class="signup-text">
                 Already have an account?
-                <a href="{{ url_for('auth.home') }}">Login</a>
+                <a href="{{ url_for('auth.home') }}">Sign in</a>
             </p>
         </div>
 
