@@ -6,6 +6,7 @@ import hashlib
 import time
 import threading
 import re
+import magic
 import numpy as np
 from pathlib import Path
 from functools import lru_cache
@@ -13,6 +14,7 @@ from PyPDF2 import PdfReader
 from huggingface_hub import InferenceClient
 from groq import Groq
 from supabase import create_client, Client
+from database import get_db
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -78,7 +80,6 @@ class KnowledgeBase:
         base_dir = Path(__file__).parent.resolve()
         self.directory = (base_dir / directory).resolve()
         self.dynamic_kb_path = self.directory / "_dynamic.jsonl"
-        self.processed_files_path = self.directory / "_processed_files.json"
         self.model_id = model_id
         self.chunks = []
         self.embeddings = None
@@ -106,20 +107,36 @@ class KnowledgeBase:
         self.load_and_process()
 
     def load_processed_files_metadata(self):
-        if self.processed_files_path.exists():
-            try:
-                with open(self.processed_files_path, 'r') as f:
-                    self._processed_files = json.load(f)
-            except Exception as e:
-                logger.error(f"Error loading processed files metadata: {e}")
-                self._processed_files = {}
+        with self._lock:
+            self._load_metadata_internal()
 
-    def save_processed_files_metadata(self):
+    def _load_metadata_internal(self):
         try:
-            with open(self.processed_files_path, 'w') as f:
-                json.dump(self._processed_files, f)
+            conn = get_db()
+            rows = conn.execute("SELECT filename, file_hash FROM kb_processed_files").fetchall()
+            self._processed_files = {row['filename']: row['file_hash'] for row in rows}
+            conn.close()
+            logger.info(f"Loaded {len(self._processed_files)} processed files from database.")
         except Exception as e:
-            logger.error(f"Error saving processed files metadata: {e}")
+            logger.error(f"Error loading processed files metadata from DB: {e}")
+            self._processed_files = {}
+
+    def save_processed_files_metadata(self, filename, file_hash):
+        with self._lock:
+            self._save_metadata_internal(filename, file_hash)
+
+    def _save_metadata_internal(self, filename, file_hash):
+        try:
+            conn = get_db()
+            conn.execute("""
+                INSERT INTO kb_processed_files (filename, file_hash)
+                VALUES (?, ?)
+                ON CONFLICT(filename) DO UPDATE SET file_hash=excluded.file_hash, created_at=CURRENT_TIMESTAMP
+            """, (filename, file_hash))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.error(f"Error saving processed files metadata to DB: {e}")
 
     def _get_file_hash(self, filepath):
         hasher = hashlib.md5()
@@ -164,28 +181,33 @@ class KnowledgeBase:
         return chunks
 
     def _extract_text(self, obj, depth=0):
-        if depth > 10: # Safety against infinite recursion
+        if depth > 15: # Safety against infinite recursion
             return ""
         if isinstance(obj, str):
             return obj
+        if isinstance(obj, (int, float, bool)):
+            return str(obj)
         if isinstance(obj, dict):
             # Prioritize certain fields but also look deeper if needed
-            content_fields = {'content', 'text', 'body', 'description', 'title', 'summary'}
+            content_fields = {'content', 'text', 'body', 'description', 'title', 'summary', 'heading', 'caption', 'instruction'}
             extracted = []
             # First pass: check priority fields
             for k, v in obj.items():
                 if k.lower() in content_fields:
-                    extracted.append(self._extract_text(v, depth + 1))
+                    res = self._extract_text(v, depth + 1)
+                    if res: extracted.append(res)
 
-            # Second pass: if nothing found, look at everything else
-            if not extracted:
-                for v in obj.values():
-                    if isinstance(v, (dict, list, str)):
+            # Second pass: if nothing found or even if found, look at everything else to be thorough but avoid duplicates
+            for k, v in obj.items():
+                if k.lower() not in content_fields:
+                    if isinstance(v, (dict, list, str, int, float, bool)):
                         res = self._extract_text(v, depth + 1)
-                        if res: extracted.append(res)
-            return " ".join(filter(None, extracted))
+                        if res and res not in extracted:
+                            extracted.append(res)
+
+            return "\n".join(filter(None, extracted))
         if isinstance(obj, list):
-            return " ".join(filter(None, [self._extract_text(i, depth + 1) for i in obj[:MAX_JSON_ITEMS]]))
+            return "\n".join(filter(None, [self._extract_text(i, depth + 1) for i in obj[:MAX_JSON_ITEMS]]))
         return ""
 
     def process_file(self, filepath, metadata=None, summarize=False):
@@ -197,19 +219,23 @@ class KnowledgeBase:
             logger.info(f"Skipping {filename}, already processed.")
             return True, 0
 
+        mime_type = magic.from_file(str(filepath), mime=True)
+        logger.info(f"Processing {filename} (MIME: {mime_type})")
+
         text = ""
         try:
-            if filename.endswith('.txt') or filename.endswith('.md'):
+            if mime_type == 'text/plain' or filename.endswith('.md'):
                 with open(filepath, 'r', encoding='utf-8') as f:
                     text = f.read()
-                    text = self._strip_markdown(text)
-            elif filename.endswith('.json'):
+                    if filename.endswith('.md'):
+                        text = self._strip_markdown(text)
+            elif mime_type == 'application/json':
                 with open(filepath, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                     text = self._extract_text(data)
-            elif filename.endswith('.pdf'):
+            elif mime_type == 'application/pdf':
                 try:
-                    reader = PdfReader(filepath)
+                    reader = PdfReader(filepath, strict=False)
                     if reader.is_encrypted:
                         logger.warning(f"PDF {filename} is encrypted. Attempting to decrypt with empty password.")
                         try:
@@ -254,61 +280,63 @@ class KnowledgeBase:
             except Exception as e:
                 logger.error(f"Error generating embeddings for {filename} after retries: {e}")
 
-        with self._lock:
-            # Sync to Supabase Storage first
-            if self.supabase:
-                try:
-                    # Check if file exists in storage
-                    storage_files = self.supabase.storage.from_("knowledge-base").list()
-                    exists = any(f['name'] == filename for f in storage_files)
-                    if not exists:
-                        logger.info(f"Uploading {filename} to Supabase Storage...")
-                        with open(filepath, 'rb') as f:
-                            self.supabase.storage.from_("knowledge-base").upload(
-                                path=filename,
-                                file=f,
-                                file_options={"content-type": "application/octet-stream"}
-                            )
-                except Exception as e:
-                    logger.error(f"Supabase Storage upload error for {filename}: {e}")
+        # Sync to Supabase Storage first (Network IO - Outside lock)
+        if self.supabase:
+            try:
+                # Check if file exists in storage
+                storage_files = self.supabase.storage.from_("knowledge-base").list()
+                exists = any(f['name'] == filename for f in storage_files)
+                if not exists:
+                    logger.info(f"Uploading {filename} to Supabase Storage...")
+                    with open(filepath, 'rb') as f:
+                        self.supabase.storage.from_("knowledge-base").upload(
+                            path=filename,
+                            file=f,
+                            file_options={"content-type": "application/octet-stream"}
+                        )
+            except Exception as e:
+                logger.error(f"Supabase Storage upload error for {filename}: {e}")
 
-            self.chunks.extend(new_chunks)
-            if embeddings_list:
-                new_emb_array = np.array(embeddings_list)
-                if self.embeddings is None:
-                    self.embeddings = new_emb_array
-                else:
-                    self.embeddings = np.vstack([self.embeddings, new_emb_array])
+        # Sync to Supabase Vector DB (Network IO - Outside lock)
+        supabase_success = True
+        if self.supabase and embeddings_list:
+            try:
+                data_to_insert = [
+                    {
+                        'content': chunk,
+                        'embedding': emb,
+                        'metadata': {**(metadata or {}), 'source': filename, 'hash': file_hash}
+                    }
+                    for chunk, emb in zip(new_chunks, embeddings_list)
+                ]
+                # Attempt upsert
+                retry_api_call(
+                    lambda: self.supabase.table('kb_documents').upsert(data_to_insert).execute()
+                )
+            except Exception as e:
+                logger.error(f"Supabase Vector DB sync error for {filename}: {e}")
+                supabase_success = False
 
-            # Sync to Supabase Vector DB
-            supabase_success = True
-            if self.supabase and embeddings_list:
-                try:
-                    data_to_insert = [
-                        {
-                            'content': chunk,
-                            'embedding': emb,
-                            'metadata': {**(metadata or {}), 'source': filename, 'hash': file_hash}
-                        }
-                        for chunk, emb in zip(new_chunks, embeddings_list)
-                    ]
-                    # Attempt upsert
-                    retry_api_call(
-                        lambda: self.supabase.table('kb_documents').upsert(data_to_insert).execute()
-                    )
-                except Exception as e:
-                    logger.error(f"Supabase Vector DB sync error for {filename}: {e}")
-                    supabase_success = False
+        if supabase_success or not self.supabase:
+            with self._lock:
+                self.chunks.extend(new_chunks)
+                if embeddings_list:
+                    new_emb_array = np.array(embeddings_list)
+                    if self.embeddings is None:
+                        self.embeddings = new_emb_array
+                    else:
+                        self.embeddings = np.vstack([self.embeddings, new_emb_array])
 
-            if supabase_success or not self.supabase:
                 self._processed_files[filename] = file_hash
-                self.save_processed_files_metadata()
+                self._save_metadata_internal(filename, file_hash)
 
         return True, processed_size
 
     def load_and_process(self):
         if not self.directory.exists():
-            self.directory.mkdir(parents=True, exist_ok=True)
+            with self._lock:
+                if not self.directory.exists():
+                    self.directory.mkdir(parents=True, exist_ok=True)
 
         # 1. Sync from Supabase Storage if available
         if self.supabase:

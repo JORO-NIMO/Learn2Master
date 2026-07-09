@@ -31,23 +31,37 @@ def test_kb_logic():
         self.hf_client.feature_extraction.side_effect = lambda chunks, model: [[0.1]*384 for _ in chunks]
 
     # Temporarily override __init__ for the test if needed, or just set it after
+    # We pass an empty HF_TOKEN to avoid actual API calls before we mock
+    os.environ['HF_TOKEN'] = ''
     kb = KnowledgeBase(directory="test_kb")
     kb.hf_client = MagicMock()
     kb.hf_client.feature_extraction.side_effect = lambda chunks, model: [[0.1]*384 for _ in (chunks if isinstance(chunks, list) else [chunks])]
+
+    # Clear processed files to force re-processing with mock
+    from database import get_db
+    conn = get_db()
+    conn.execute("DELETE FROM kb_processed_files")
+    conn.commit()
+    conn.close()
+    kb._processed_files = {}
 
     # Re-trigger load to use the mock
     kb.load_and_process()
 
     print(f"Chunks loaded: {len(kb.chunks)}")
-    processed_files_path = kb_dir / "_processed_files.json"
 
-    if processed_files_path.exists():
-        with open(processed_files_path, 'r') as f:
-            processed = json.load(f)
-            print(f"Processed files log: {processed}")
-            assert "test.txt" in processed
+    # Check database for metadata
+    from database import get_db
+    conn = get_db()
+    row = conn.execute("SELECT * FROM kb_processed_files WHERE filename = ?", ("test.txt",)).fetchone()
+    conn.close()
+
+    if row:
+        print(f"Database entry found: {dict(row)}")
+        assert row['filename'] == "test.txt"
     else:
-        print("Error: _processed_files.json not created")
+        print("Error: kb_processed_files entry not found in database")
+        assert False, "Metadata not saved to database"
 
     # Test Search (Local Fallback if no embeddings)
     print("Testing search (expecting local search if embeddings are None)...")
